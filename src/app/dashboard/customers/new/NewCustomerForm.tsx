@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { saveCustomer, updateCustomer, getCustomer, flattenCustomer } from '@/lib/storage';
 import { calculateAge } from '@/lib/utils';
@@ -8,7 +8,9 @@ import {
   MotorPolicy, MedicalPolicy, FirePolicy, LifePolicy,
   MemberInfo,
 } from '@/lib/types';
-import { Car, Heart, Flame, Shield, Check, ChevronRight, ChevronLeft, Save, X } from 'lucide-react';
+import { Car, Heart, Flame, Shield, Check, ChevronRight, ChevronLeft, Save, X, Upload, FileText, Loader2, AlertTriangle, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { pdfQueue, QueueItem } from '@/lib/pdfQueue';
+import { formatFileSize, estimateQueueTime } from '@/lib/formatFileSize';
 
 const typeOptions: { type: PolicyType; label: string; desc: string; icon: typeof Car; color: string; bg: string; }[] = [
   { type: 'motor',   label: 'Motor',   desc: 'Vehicle / Auto insurance', icon: Car,    color: '#185FA5', bg: '#e9f2fc' },
@@ -84,6 +86,16 @@ export default function NewCustomerForm() {
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
 
+  // ── PDF Upload mode ─────────────────────────────────────────────────────────
+  const [entryMode, setEntryMode] = useState<'manual' | 'pdf'>('manual');
+  const [queueItems, setQueueItems] = useState<QueueItem[]>([]);
+  const [selectedResultId, setSelectedResultId] = useState<string | null>(null);
+  const [wasExtracted, setWasExtracted] = useState(false);
+  const [extractionConfidence, setExtractionConfidence] = useState(100);
+  const [isDragging, setIsDragging] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [fileErrors, setFileErrors] = useState<string[]>([]);
+
   useEffect(() => {
     if (!editId) { setMounted(true); return; }
     getCustomer(editId)
@@ -127,7 +139,162 @@ export default function NewCustomerForm() {
       .finally(() => setMounted(true));
   }, [editId]);
 
+  // ── Queue subscription — must be before early return to respect Rules of Hooks ──
+  // eslint-disable-next-line react-hooks/rules-of-hooks
+  useEffect(() => {
+    const unsub = pdfQueue.subscribe(setQueueItems);
+    setQueueItems(pdfQueue.getQueue());
+    return unsub;
+  }, []);
+
+  // Watch for a completed extraction to auto-fill the form
+  // eslint-disable-next-line react-hooks/rules-of-hooks
+  useEffect(() => {
+    if (!selectedResultId) return;
+    const done = queueItems.find(
+      (item) => item.id === selectedResultId && item.status === 'done' && item.result
+    );
+    if (done?.result) {
+      autoFillForm(done.result);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [queueItems, selectedResultId]);
+
   if (!mounted) return null;
+
+  function autoFillForm(data: Record<string, unknown>) {
+    if (!data) return;
+    const d = (data.details ?? {}) as Record<string, unknown>;
+    const type = data.type as PolicyType | undefined;
+
+    if (type && ['motor', 'medical', 'fire', 'life'].includes(type)) {
+      setSelectedType(type);
+    }
+
+    setBase({
+      customerName:  String(data.customerName  ?? ''),
+      phone:         String(data.phone          ?? ''),
+      email:         String(data.email          ?? ''),
+      address:       String(data.address        ?? ''),
+      policyNumber:  String(data.policyNumber   ?? ''),
+      sumInsured:    data.sumInsured  != null ? String(data.sumInsured)  : '',
+      premiumAmount: data.premium     != null ? String(data.premium)     : '',
+      startDate:     String(data.startDate      ?? ''),
+      endDate:       String(data.endDate        ?? ''),
+    });
+
+    if (type === 'motor') {
+      setMotor({
+        vehicleMake:        String(d.make         ?? ''),
+        vehicleModel:       String(d.model        ?? ''),
+        vehicleYear:        d.year   != null ? String(d.year)   : '',
+        registrationNumber: String(d.vehicleReg   ?? ''),
+        engineCC:           d.engineCC != null ? String(d.engineCC) : '',
+        fuelType:           String(d.fuelType ?? '') as MotorPolicy['fuelType'],
+        idvValue:           d.idvValue != null ? String(d.idvValue) : '',
+        ncbPercent:         d.ncb      != null ? String(d.ncb)      : '',
+        addOns:             Array.isArray(d.addOns) ? (d.addOns as string[]).join(', ') : String(d.addOns ?? ''),
+      } as unknown as Omit<MotorPolicy, keyof Policy>);
+    } else if (type === 'medical') {
+      const dob = String(d.dateOfBirth ?? '');
+      const memberNames = Array.isArray(d.memberNames) ? d.memberNames as string[] : [];
+      const count = d.membersCount != null ? Number(d.membersCount) : Math.max(1, memberNames.length);
+      const members: MemberInfo[] = Array.from({ length: count }, (_, i) => ({
+        name: memberNames[i] ?? '',
+        age: '',
+      }));
+      setMedical({
+        dateOfBirth: dob,
+        age: dob ? String(calculateAge(dob)) : (d.age != null ? String(d.age) : ''),
+        gender: String(d.gender ?? '') as MedicalPolicy['gender'],
+        bloodGroup: String(d.bloodGroup ?? ''),
+        preExistingConditions: String(d.preExistingConditions ?? ''),
+        smoker: d.smoker === true ? 'Yes' : d.smoker === false ? 'No' : '' as MedicalPolicy['smoker'],
+        numberOfMembers: String(count),
+        members,
+        cashlessHospitalNetwork: String(d.cashlessNetwork ?? ''),
+      });
+    } else if (type === 'fire') {
+      setFire({
+        propertyType: String(d.propertyType ?? '') as FirePolicy['propertyType'],
+        propertyAddress: String(d.propertyAddress ?? ''),
+        builtUpArea: d.builtUpArea != null ? String(d.builtUpArea) : '',
+        constructionType: String(d.constructionType ?? '') as FirePolicy['constructionType'],
+        propertyValue: d.propertyValue != null ? String(d.propertyValue) : '',
+        stockValue: d.stockValue != null ? String(d.stockValue) : '',
+        riskLocation: String(d.riskLocation ?? ''),
+      });
+    } else if (type === 'life') {
+      const dob = String(d.dateOfBirth ?? '');
+      setLife({
+        dateOfBirth: dob,
+        age: dob ? String(calculateAge(dob)) : (d.age != null ? String(d.age) : ''),
+        gender: String(d.gender ?? '') as LifePolicy['gender'],
+        occupation: String(d.occupation ?? ''),
+        annualIncome: d.annualIncome != null ? String(d.annualIncome) : '',
+        smoker: d.smoker === true ? 'Yes' : d.smoker === false ? 'No' : '' as LifePolicy['smoker'],
+        nomineeName: String(d.nomineeName ?? ''),
+        nomineeRelation: String(d.nomineeRelation ?? ''),
+        lifePolicyType: String(d.policyType ?? '') as LifePolicy['lifePolicyType'],
+        sumAssured: data.sumInsured != null ? String(data.sumInsured) : '',
+        premiumFrequency: String(d.premiumFrequency ?? '') as LifePolicy['premiumFrequency'],
+        maturityDate: String(d.maturityDate ?? ''),
+        policyTerm: d.policyTerm != null ? String(d.policyTerm) : '',
+      });
+    }
+
+    setWasExtracted(true);
+    setExtractionConfidence(typeof data.confidence === 'number' ? data.confidence : 100);
+    setErrors({});
+  }
+
+  function handleFilesSelected(files: FileList | null) {
+    if (!files || files.length === 0) return;
+    const validFiles: File[] = [];
+    const errs: string[] = [];
+    Array.from(files).forEach((file) => {
+      if (file.type !== 'application/pdf') {
+        errs.push(`${file.name} is not a PDF`);
+      } else if (file.size > 10 * 1024 * 1024) {
+        errs.push(`${file.name} exceeds 10 MB limit`);
+      } else {
+        validFiles.push(file);
+      }
+    });
+    setFileErrors(errs);
+    if (validFiles.length > 0) {
+      const ids = pdfQueue.addFiles(validFiles);
+      setSelectedResultId(ids[0]);
+    }
+  }
+
+  function handleModeSwitch(mode: 'manual' | 'pdf') {
+    if (mode === entryMode) return;
+    const hasData = Object.values(base).some((v) => v !== '') ||
+      wasExtracted;
+    if (hasData) {
+      const msg = mode === 'pdf'
+        ? 'Switching to PDF mode will clear your entered data. Continue?'
+        : 'Switching to manual mode will clear extracted data. Continue?';
+      if (!window.confirm(msg)) return;
+    }
+    // Reset form state
+    setBase(emptyBase());
+    setMotor(emptyMotor());
+    setMedical(emptyMedical());
+    setFire(emptyFire());
+    setLife(emptyLife());
+    setErrors({});
+    setWasExtracted(false);
+    setExtractionConfidence(100);
+    setFileErrors([]);
+    if (mode === 'manual') {
+      pdfQueue.clearCompleted();
+      setSelectedResultId(null);
+    }
+    setEntryMode(mode);
+  }
+
 
   function validate(): Errors {
     const e: Errors = {};
@@ -188,6 +355,26 @@ export default function NewCustomerForm() {
         router.push(`/dashboard/customers/${editId}`);
       } else {
         const created = await saveCustomer(payload);
+        // Clean up the used queue item and prompt if more are waiting
+        if (selectedResultId) {
+          pdfQueue.removeItem(selectedResultId);
+          setSelectedResultId(null);
+          const remaining = pdfQueue.getQueue().filter(
+            (i) => i.status === 'done' || i.status === 'waiting' || i.status === 'processing' || i.status === 'retrying'
+          );
+          if (remaining.length > 0) {
+            const next = remaining.find((i) => i.status === 'done');
+            const msg = next
+              ? `Customer saved! Load next PDF from queue?`
+              : `Customer saved! ${remaining.length} PDF(s) still processing — come back to use them.`;
+            if (next && window.confirm(msg)) {
+              setSelectedResultId(next.id);
+              if (next.result) autoFillForm(next.result);
+              setSubmitting(false);
+              return;
+            }
+          }
+        }
         router.push(`/dashboard/customers/${created._id}`);
       }
     } catch (err: unknown) {
@@ -269,6 +456,208 @@ export default function NewCustomerForm() {
 
       <div className="card">
         <div className="card-body">
+
+          {/* ── Mode Toggle ─────────────────────────────────────────── */}
+          {!editId && (
+            <div style={{ display: 'flex', gap: 0, marginBottom: 24, borderRadius: 'var(--radius)', border: '1.5px solid var(--border)', overflow: 'hidden' }}>
+              <button
+                id="mode-manual"
+                onClick={() => handleModeSwitch('manual')}
+                style={{
+                  flex: 1, padding: '12px 16px', fontSize: 13.5, fontWeight: 600,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                  border: 'none', cursor: 'pointer', transition: 'all .15s ease',
+                  background: entryMode === 'manual' ? 'var(--primary)' : 'var(--surface)',
+                  color: entryMode === 'manual' ? '#fff' : 'var(--text-muted)',
+                }}
+              >
+                ✎ Enter Manually
+              </button>
+              <div style={{ width: 1, background: 'var(--border)' }} />
+              <button
+                id="mode-pdf"
+                onClick={() => handleModeSwitch('pdf')}
+                style={{
+                  flex: 1, padding: '12px 16px', fontSize: 13.5, fontWeight: 600,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                  border: 'none', cursor: 'pointer', transition: 'all .15s ease',
+                  background: entryMode === 'pdf' ? 'var(--primary)' : 'var(--surface)',
+                  color: entryMode === 'pdf' ? '#fff' : 'var(--text-muted)',
+                }}
+              >
+                <Upload size={15} /> Upload Policy PDF
+              </button>
+            </div>
+          )}
+
+          {/* ── PDF Drop Zone ────────────────────────────────────────── */}
+          {entryMode === 'pdf' && (
+            <div style={{ marginBottom: 20 }}>
+              <div
+                id="pdf-drop-zone"
+                onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+                onDragLeave={() => setIsDragging(false)}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  setIsDragging(false);
+                  handleFilesSelected(e.dataTransfer.files);
+                }}
+                onClick={() => fileInputRef.current?.click()}
+                style={{
+                  border: `2px dashed ${isDragging ? 'var(--primary)' : 'var(--border)'}`,
+                  borderRadius: 'var(--radius-lg)',
+                  padding: '32px 24px',
+                  textAlign: 'center',
+                  cursor: 'pointer',
+                  background: isDragging ? 'var(--primary-light)' : 'var(--bg)',
+                  transition: 'all .15s ease',
+                  marginBottom: 12,
+                }}
+              >
+                <Upload size={28} style={{ color: 'var(--primary)', marginBottom: 10, display: 'block', margin: '0 auto 10px' }} />
+                <div style={{ fontWeight: 600, fontSize: 14, color: 'var(--text)', marginBottom: 4 }}>
+                  Drop PDF files here or click to browse
+                </div>
+                <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                  Supports multiple files &nbsp;•&nbsp; Max 10 MB each
+                </div>
+              </div>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".pdf,application/pdf"
+                multiple
+                style={{ display: 'none' }}
+                onChange={(e) => handleFilesSelected(e.target.files)}
+              />
+              {fileErrors.length > 0 && (
+                <div style={{ background: 'var(--status-expired-bg)', border: '1px solid #f7b8b8', borderRadius: 'var(--radius-sm)', padding: '10px 14px', fontSize: 12.5, color: 'var(--status-expired)', marginBottom: 8 }}>
+                  {fileErrors.map((err, i) => <div key={i}>⚠ {err}</div>)}
+                </div>
+              )}
+
+              {/* ── Queue List ─────────────────────────────────────── */}
+              {queueItems.length > 0 && (
+                <div style={{ border: '1px solid var(--border)', borderRadius: 'var(--radius)', overflow: 'hidden' }}>
+                  {/* Estimated time */}
+                  {(() => {
+                    const waiting = queueItems.filter(i => i.status === 'waiting' || i.status === 'retrying');
+                    const done    = queueItems.filter(i => i.status === 'done').length;
+                    const total   = queueItems.length;
+                    return (
+                      <div style={{ padding: '10px 14px', background: 'var(--bg)', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
+                        <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                          Processed: <strong>{done}</strong> of <strong>{total}</strong>
+                          {waiting.length > 0 && (
+                            <> &nbsp;•&nbsp; ⏱ {estimateQueueTime(waiting.length)} remaining</>
+                          )}
+                        </span>
+                        <button className="btn btn-ghost btn-sm" onClick={() => pdfQueue.clearCompleted()}>
+                          Clear Completed
+                        </button>
+                      </div>
+                    );
+                  })()}
+
+                  {/* Progress bar */}
+                  {(() => {
+                    const done  = queueItems.filter(i => i.status === 'done' || i.status === 'error').length;
+                    const total = queueItems.length;
+                    const pct   = total > 0 ? Math.round((done / total) * 100) : 0;
+                    return (
+                      <div style={{ height: 4, background: 'var(--border)' }}>
+                        <div style={{ height: '100%', width: `${pct}%`, background: 'var(--primary)', transition: 'width .4s ease' }} />
+                      </div>
+                    );
+                  })()}
+
+                  {/* Items */}
+                  {queueItems.map((item) => (
+                    <div key={item.id} style={{
+                      display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px',
+                      borderBottom: '1px solid var(--border-light)',
+                      background: item.id === selectedResultId ? 'var(--primary-light)' : 'var(--surface)',
+                    }}>
+                      <FileText size={16} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {item.fileName}
+                        </div>
+                        <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{formatFileSize(item.fileSize)}</div>
+                      </div>
+
+                      {/* Status indicator */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, flexShrink: 0 }}>
+                        {item.status === 'waiting'    && <span style={{ color: 'var(--text-muted)' }}>⬤ Waiting…</span>}
+                        {item.status === 'processing' && <><Loader2 size={13} style={{ color: 'var(--primary)', animation: 'spin 1s linear infinite' }} /> <span style={{ color: 'var(--primary)' }}>Extracting…</span></>}
+                        {item.status === 'retrying'   && <span style={{ color: 'var(--status-expiring)' }}>⟳ Retrying ({item.retries}/3)…</span>}
+                        {item.status === 'done'       && <><CheckCircle2 size={14} style={{ color: 'var(--status-active)' }} /><span style={{ color: 'var(--status-active)' }}>Done</span></>}
+                        {item.status === 'error'      && (
+                          <span style={{ color: 'var(--status-expired)', display: 'flex', alignItems: 'center', gap: 4 }}>
+                            <AlertCircle size={13} /> {item.error}
+                            <button className="btn btn-ghost btn-sm" style={{ fontSize: 11, padding: '2px 8px', marginLeft: 4 }}
+                              onClick={() => pdfQueue.retryItem(item.id)}>Retry</button>
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Use button */}
+                      <button
+                        className="btn btn-outline btn-sm"
+                        disabled={item.status !== 'done'}
+                        onClick={() => {
+                          setSelectedResultId(item.id);
+                          if (item.result) autoFillForm(item.result);
+                        }}
+                      >
+                        Use
+                      </button>
+
+                      {/* Remove button */}
+                      <button
+                        className="btn btn-ghost btn-sm"
+                        disabled={item.status === 'processing'}
+                        onClick={() => {
+                          pdfQueue.removeItem(item.id);
+                          if (item.id === selectedResultId) setSelectedResultId(null);
+                        }}
+                        style={{ padding: '4px 8px' }}
+                      >
+                        <X size={13} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ── Extraction Banner ──────────────────────────────────── */}
+          {wasExtracted && (
+            <div style={{
+              borderRadius: 'var(--radius)',
+              padding: '12px 16px',
+              marginBottom: 20,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 10,
+              fontSize: 13.5,
+              fontWeight: 500,
+              background: extractionConfidence >= 80 ? '#e4f5ec' : extractionConfidence >= 60 ? 'var(--status-expiring-bg)' : 'var(--status-expiring-bg)',
+              border: `1px solid ${extractionConfidence >= 80 ? '#a7e3be' : extractionConfidence >= 60 ? 'var(--fire-border)' : '#f7b8b8'}`,
+              color: extractionConfidence >= 80 ? 'var(--status-active)' : 'var(--status-expiring)',
+            }}>
+              {extractionConfidence >= 80
+                ? <CheckCircle2 size={16} />
+                : extractionConfidence >= 60
+                  ? <AlertTriangle size={16} />
+                  : <AlertCircle size={16} />}
+              {extractionConfidence >= 80 && 'Details extracted from PDF — review before saving'}
+              {extractionConfidence >= 60 && extractionConfidence < 80 && 'Low confidence extraction — verify all fields carefully'}
+              {extractionConfidence < 60  && 'Very low confidence — please verify everything. Policy type may be incorrect.'}
+              <span style={{ marginLeft: 'auto', fontSize: 11, opacity: 0.7 }}>Confidence: {extractionConfidence}%</span>
+            </div>
+          )}
 
           {/* Customer Info */}
           <div className="form-section">

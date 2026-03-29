@@ -903,3 +903,8 @@ textarea.form-control { resize: vertical; min-height: 80px; }
   .form-grid-2, .form-grid-3 { grid-template-columns: 1fr; }
   .type-grid { grid-template-columns: 1fr 1fr; }
 }
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
