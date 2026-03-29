@@ -14,15 +14,15 @@ const CustomerSchema = new mongoose.Schema({
   },
 
   // ── Common fields ──────────────────────────────────────────────────────────
-  customerName:  { type: String, required: true, trim: true },
-  phone:         { type: String, required: true, trim: true },
-  email:         { type: String, trim: true, default: '' },
-  address:       { type: String, trim: true, default: '' },
-  policyNumber:  { type: String, required: true, trim: true },
+  customerName: { type: String, required: true, trim: true },
+  phone: { type: String, required: true, trim: true },
+  email: { type: String, trim: true, default: '' },
+  address: { type: String, trim: true, default: '' },
+  policyNumber: { type: String, required: true, trim: true },
   premiumAmount: { type: String, required: true },
-  sumInsured:    { type: String, default: '' },
-  startDate:     { type: String, required: true },
-  endDate:       { type: String, required: true },
+  sumInsured: { type: String, default: '' },
+  startDate: { type: String, required: true },
+  endDate: { type: String, required: true },
 
   // ── Type-specific fields (flexible per-type sub-document) ──────────────────
   // Motor:   { vehicleMake, vehicleModel, vehicleYear, registrationNumber,
@@ -46,6 +46,7 @@ const CustomerSchema = new mongoose.Schema({
 
 
 // Compound indexes for fast, scoped queries
+CustomerSchema.index({ agentId: 1 })
 CustomerSchema.index({ agentId: 1, type: 1 });
 CustomerSchema.index({ agentId: 1, endDate: 1 });
 CustomerSchema.index({ agentId: 1, policyNumber: 1 });
