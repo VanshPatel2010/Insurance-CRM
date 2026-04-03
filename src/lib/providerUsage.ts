@@ -74,7 +74,7 @@ export async function incrementUsage(providerId: string): Promise<void> {
     await ProviderUsage.findOneAndUpdate(
       { providerId, date: todayUTC() },
       { $inc: { count: 1 } },
-      { upsert: true, new: true }
+      { upsert: true, returnDocument: 'after' }
     );
   } catch (err) {
     console.warn(`[providerUsage] Could not increment usage for "${providerId}":`, err);

@@ -1,7 +1,28 @@
-'use client';
-import { useEffect, useState } from 'react';
+/**
+ * Dashboard page — Server Component.
+ *
+ * DATA FETCHING STRATEGY (LCP impact):
+ * ─────────────────────────────────────
+ * OLD: 'use client' + useEffect → fetch('/api/dashboard/stats')
+ *      → Browser downloads JS → runs React → fires fetch → waits for network
+ *      → renders content. The LCP element (stat numbers) only appears after
+ *        ~3 round-trips: HTML → JS bundle → API response.
+ *
+ * NEW: async Server Component that calls the DB directly on the server.
+ *      The HTML sent to the browser already contains the stats. LCP = first paint.
+ *      The client downloads ZERO JavaScript for this page's data logic.
+ *
+ * CRITICAL REQUEST CHAIN: eliminated.
+ * HTML → rendered (no waterfall for data).
+ */
+
 import Link from 'next/link';
-import { getDashboardStats, DashboardStats } from '@/lib/storage';
+import mongoose from 'mongoose';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/authOptions';
+import { redirect } from 'next/navigation';
+import { connectDB } from '@/lib/mongodb';
+import Customer from '@/models/Customer';
 import { formatCurrency, formatDate, daysUntilExpiry } from '@/lib/utils';
 import { PolicyType } from '@/lib/types';
 import PolicyBadge from '@/components/PolicyBadge';
@@ -19,49 +40,92 @@ import {
   Plus,
 } from 'lucide-react';
 
-const typeConfig: Record<
-  PolicyType,
-  { label: string; icon: typeof Car; color: string; bg: string; badgeClass: string }
-> = {
-  motor:   { label: 'Motor',   icon: Car,    color: '#185FA5', bg: '#e9f2fc', badgeClass: 'motor' },
-  medical: { label: 'Medical', icon: Heart,  color: '#3B6D11', bg: '#edf7e4', badgeClass: 'medical' },
-  fire:    { label: 'Fire',    icon: Flame,  color: '#BA7517', bg: '#fef4e0', badgeClass: 'fire' },
-  life:    { label: 'Life',    icon: Shield, color: '#534AB7', bg: '#eeecfb', badgeClass: 'life' },
+// ── Metadata (static, no JS cost) ─────────────────────────────────────────────
+export const metadata = {
+  title: 'Dashboard — InsureCRM',
 };
 
-export default function DashboardPage() {
-  const [stats,   setStats]   = useState<DashboardStats | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error,   setError]   = useState('');
+// ── Revalidate every 60 s on Vercel (ISR) — fresh data without a full SSR hit ─
+export const revalidate = 60;
 
-  useEffect(() => {
-    getDashboardStats()
-      .then(setStats)
-      .catch((e: Error) => setError(e.message))
-      .finally(() => setLoading(false));
-  }, []);
+// ── Policy type display config (server-only, never sent to the client) ─────────
+const typeConfig: Record<
+  PolicyType,
+  { label: string; icon: typeof Car; color: string; bg: string }
+> = {
+  motor:   { label: 'Motor',   icon: Car,    color: '#185FA5', bg: '#e9f2fc' },
+  medical: { label: 'Medical', icon: Heart,  color: '#3B6D11', bg: '#edf7e4' },
+  fire:    { label: 'Fire',    icon: Flame,  color: '#BA7517', bg: '#fef4e0' },
+  life:    { label: 'Life',    icon: Shield, color: '#534AB7', bg: '#eeecfb' },
+};
 
-  if (loading) {
-    return (
-      <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>
-        Loading dashboard…
-      </div>
-    );
-  }
+// ── Server-side data fetch ────────────────────────────────────────────────────
+async function getDashboardData(agentIdStr: string) {
+  await connectDB();
 
-  if (error || !stats) {
-    return (
-      <div style={{ padding: 40, textAlign: 'center', color: 'var(--status-expired)' }}>
-        {error || 'Failed to load dashboard.'}
-      </div>
-    );
-  }
+  // Session stores agentId as a string; convert to ObjectId for Mongoose queries
+  const agentId = new mongoose.Types.ObjectId(agentIdStr);
 
-  const { total, typeCounts, expiring, totalPremium, recent } = stats;
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const in30  = new Date(today.getTime() + 30 * 24 * 60 * 60 * 1000);
+
+  const [total, typeCounts, expiring, premiumAgg, recent] = await Promise.all([
+    // Total count
+    Customer.countDocuments({ agentId }),
+
+    // Per-type counts
+    Customer.aggregate([
+      { $match: { agentId } },
+      { $group: { _id: '$type', count: { $sum: 1 } } },
+    ]),
+
+    // Expiring in 30 days
+    Customer.find({
+      agentId,
+      endDate: { $gte: today.toISOString().slice(0, 10), $lte: in30.toISOString().slice(0, 10) },
+    })
+      .sort({ endDate: 1 })
+      .limit(10)
+      .lean(),
+
+    // Sum of premiums
+    Customer.aggregate([
+      { $match: { agentId } },
+      { $group: { _id: null, total: { $sum: { $toDouble: '$premiumAmount' } } } },
+    ]),
+
+    // Recently added
+    Customer.find({ agentId })
+      .sort({ createdAt: -1 })
+      .limit(8)
+      .lean(),
+  ]);
+
+  const typeCountMap = Object.fromEntries(
+    (typeCounts as { _id: string; count: number }[]).map(({ _id, count }) => [_id, count])
+  );
+
+  return {
+    total,
+    typeCountMap,
+    expiring: expiring as unknown as Array<Record<string, string>>,
+    totalPremium: premiumAgg[0]?.total ?? 0,
+    recent: recent as unknown as Array<Record<string, string>>,
+  };
+}
+
+// ── Page component ─────────────────────────────────────────────────────────────
+export default async function DashboardPage() {
+  const session = await getServerSession(authOptions);
+  if (!session) redirect('/login');
+
+  const agentId = session.user.id as string;
+  const { total, typeCountMap, expiring, totalPremium, recent } =
+    await getDashboardData(agentId);
 
   return (
     <div>
-      {/* ── Hero Stat ── */}
+      {/* ── Stat Grid ── */}
       <div className="stat-grid">
         {/* Total Customers */}
         <div className="stat-card" style={{ borderLeft: '4px solid var(--primary)' }}>
@@ -82,11 +146,7 @@ export default function DashboardPage() {
           const cfg  = typeConfig[type];
           const Icon = cfg.icon;
           return (
-            <div
-              key={type}
-              className="stat-card"
-              style={{ borderLeft: `4px solid ${cfg.color}` }}
-            >
+            <div key={type} className="stat-card" style={{ borderLeft: `4px solid ${cfg.color}` }}>
               <div className="stat-card-header">
                 <div className="stat-card-icon" style={{ background: cfg.bg, color: cfg.color }}>
                   <Icon size={20} />
@@ -95,7 +155,9 @@ export default function DashboardPage() {
                   {cfg.label}
                 </span>
               </div>
-              <div className="stat-card-value" style={{ color: cfg.color }}>{typeCounts[type] ?? 0}</div>
+              <div className="stat-card-value" style={{ color: cfg.color }}>
+                {typeCountMap[type] ?? 0}
+              </div>
               <div className="stat-card-label">{cfg.label} Policies</div>
             </div>
           );
@@ -159,7 +221,7 @@ export default function DashboardPage() {
                 const days = daysUntilExpiry(p.endDate);
                 return (
                   <div key={p._id} className="expiry-item">
-                    <PolicyBadge type={p.type} />
+                    <PolicyBadge type={p.type as PolicyType} />
                     <div className="expiry-item-info">
                       <div className="expiry-item-name">{p.customerName}</div>
                       <div className="expiry-item-meta">
@@ -202,26 +264,25 @@ export default function DashboardPage() {
               </div>
             ) : (
               recent.map(p => {
-                const initials = p.customerName
+                const initials = (p.customerName as string)
                   .split(' ')
                   .map((n: string) => n[0])
                   .slice(0, 2)
                   .join('')
                   .toUpperCase();
-                // compute status client-side from endDate string
-                const today   = new Date(); today.setHours(0,0,0,0);
-                const in30    = new Date(today.getTime() + 30*24*60*60*1000);
-                const endD    = new Date(p.endDate);
-                const status  = endD < today ? 'Expired'
-                              : endD <= in30 ? 'Expiring Soon'
-                              : 'Active';
+                const today = new Date(); today.setHours(0, 0, 0, 0);
+                const in30  = new Date(today.getTime() + 30 * 24 * 60 * 60 * 1000);
+                const endD  = new Date(p.endDate);
+                const status = endD < today  ? 'Expired'
+                             : endD <= in30  ? 'Expiring Soon'
+                             : 'Active';
                 return (
                   <div key={p._id} className="recent-item">
                     <div className="recent-avatar">{initials}</div>
                     <div className="recent-info">
                       <div className="recent-name">{p.customerName}</div>
                       <div className="recent-meta">
-                        <PolicyBadge type={p.type} /> &nbsp;
+                        <PolicyBadge type={p.type as PolicyType} />&nbsp;
                         {p.policyNumber}
                       </div>
                     </div>
@@ -256,7 +317,11 @@ export default function DashboardPage() {
           <p style={{ opacity: .8, marginBottom: 20, fontSize: 14 }}>
             Start by adding your first customer policy record.
           </p>
-          <Link href="/dashboard/customers/new" className="btn btn-lg" style={{ background: '#fff', color: 'var(--primary)', fontWeight: 700 }}>
+          <Link
+            href="/dashboard/customers/new"
+            className="btn btn-lg"
+            style={{ background: '#fff', color: 'var(--primary)', fontWeight: 700 }}
+          >
             <Plus size={18} /> Add First Customer
           </Link>
         </div>

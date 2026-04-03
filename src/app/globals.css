@@ -1,4 +1,5 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+/* Google Fonts @import removed — font is now self-hosted via next/font/google in layout.tsx.
+   This eliminates the render-blocking external stylesheet and ~300ms DNS+connect overhead. */
 
 /* ─── CSS Variables ──────────────────────────────────────────────────────────── */
 :root {
@@ -59,7 +60,8 @@
 html { font-size: 16px; -webkit-font-smoothing: antialiased; }
 
 body {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  /* Use the CSS variable injected by next/font — falls back to system-ui stack */
+  font-family: var(--font-inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif);
   background: var(--bg);
   color: var(--text);
   line-height: 1.6;
