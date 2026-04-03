@@ -46,7 +46,6 @@ const CustomerSchema = new mongoose.Schema({
 
 
 // Compound indexes for fast, scoped queries
-CustomerSchema.index({ agentId: 1 })
 CustomerSchema.index({ agentId: 1, type: 1 });
 CustomerSchema.index({ agentId: 1, endDate: 1 });
 CustomerSchema.index({ agentId: 1, policyNumber: 1 });

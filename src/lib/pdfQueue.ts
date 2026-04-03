@@ -1,6 +1,10 @@
 // pdfQueue.ts
 // Client-side singleton — manages PDF extraction queue to stay within
-// Gemini free tier limits (15 requests/minute → 1 every 4.5 s = ~13/min)
+// the strictest provider rate limit currently active.
+//
+// Gemini: 15 req/min → 1 every 4.5 s (≈ 13/min, safe headroom)
+// Groq / HuggingFace / Together: more generous limits, so Gemini's
+// 4.5 s delay is the floor — no change needed when fallback is active.
 
 export type QueueItemStatus = 'waiting' | 'processing' | 'done' | 'error' | 'retrying';
 
@@ -13,6 +17,10 @@ export type QueueItem = {
   retries: number;
   fileName: string;
   fileSize: number;
+  /** Which AI provider successfully handled this item (set on done). */
+  provider?: string;
+  /** True when all providers are exhausted — prompts the user to fill manually. */
+  fallbackToManual?: boolean;
 };
 
 type QueueCallback = (queue: QueueItem[]) => void;
@@ -21,9 +29,12 @@ class PDFQueueManager {
   private queue: QueueItem[] = [];
   private isProcessing = false;
   private listeners: QueueCallback[] = [];
-  private readonly DELAY_MS = 4500;     // 4.5 s between requests → safe under 15/min
+
+  // 4.5 s between requests — safe under Gemini's 15 RPM hard limit.
+  // Fallback providers have larger windows so this delay also covers them.
+  private readonly DELAY_MS = 4500;
   private readonly MAX_RETRIES = 3;
-  private readonly RETRY_DELAY_MS = 10000; // 10 s back-off on rate-limit
+  private readonly RETRY_DELAY_MS = 10000; // 10 s back-off on 429
 
   subscribe(callback: QueueCallback): () => void {
     this.listeners.push(callback);
@@ -75,6 +86,7 @@ class PDFQueueManager {
     if (item && item.status === 'error') {
       item.status = 'waiting';
       item.error = null;
+      item.fallbackToManual = false;
       this.notify();
       this.processNext();
     }
@@ -113,22 +125,30 @@ class PDFQueueManager {
         await this.sleep(this.RETRY_DELAY_MS);
         next.status = 'waiting';
         this.notify();
+      } else if (res.status === 503 && data?.fallbackToManual) {
+        // All AI providers exhausted — ask user to fill in manually
+        next.status = 'error';
+        next.fallbackToManual = true;
+        next.error =
+          data.message ||
+          'All AI providers are currently unavailable. Please fill in the policy details manually.';
       } else if (!res.ok) {
         next.status = 'error';
-        next.error = data.error || 'Extraction failed';
+        next.error = data?.error || 'Extraction failed';
       } else {
         next.status = 'done';
         next.result = data.data as Record<string, unknown>;
+        next.provider = data.provider as string | undefined;
       }
     } catch {
       next.status = 'error';
-      next.error = 'Network error — please check connection';
+      next.error = 'Network error — please check your connection';
     }
 
     this.notify();
     this.isProcessing = false;
 
-    // Pause before processing next to respect rate limit
+    // Pause before next item to respect the strictest rate limit
     await this.sleep(this.DELAY_MS);
     this.processNext();
   }
