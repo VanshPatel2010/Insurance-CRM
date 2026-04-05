@@ -1,0 +1,307 @@
+[
+  {
+    "scenario": "S1 - Authentication",
+    "totalRequests": 40,
+    "successCount": 40,
+    "errorCount": 0,
+    "successRate": "100.0%",
+    "wallTimeMs": 13345,
+    "p50": 717,
+    "p95": 7826,
+    "p99": 8780,
+    "breakdown": {
+      "POST /api/auth/callback/credentials": {
+        "count": 20,
+        "p50": 6550,
+        "p95": 8719,
+        "p99": 8780,
+        "min": 3356,
+        "max": 8780
+      },
+      "GET /api/auth/session": {
+        "count": 20,
+        "p50": 310,
+        "p95": 514,
+        "p99": 717,
+        "min": 283,
+        "max": 717
+      }
+    },
+    "errors": []
+  },
+  {
+    "scenario": "S7 - 20 Concurrent PDF Uploads",
+    "totalRequests": 20,
+    "successCount": 0,
+    "errorCount": 20,
+    "successRate": "0.0%",
+    "wallTimeMs": 1956,
+    "p50": 865,
+    "p95": 1631,
+    "p99": 1946,
+    "breakdown": {
+      "POST /api/extract-policy (agent 2)": {
+        "count": 1,
+        "p50": 691,
+        "p95": 691,
+        "p99": 691,
+        "min": 691,
+        "max": 691
+      },
+      "POST /api/extract-policy (agent 3)": {
+        "count": 1,
+        "p50": 734,
+        "p95": 734,
+        "p99": 734,
+        "min": 734,
+        "max": 734
+      },
+      "POST /api/extract-policy (agent 5)": {
+        "count": 1,
+        "p50": 746,
+        "p95": 746,
+        "p99": 746,
+        "min": 746,
+        "max": 746
+      },
+      "POST /api/extract-policy (agent 11)": {
+        "count": 1,
+        "p50": 814,
+        "p95": 814,
+        "p99": 814,
+        "min": 814,
+        "max": 814
+      },
+      "POST /api/extract-policy (agent 9)": {
+        "count": 1,
+        "p50": 834,
+        "p95": 834,
+        "p99": 834,
+        "min": 834,
+        "max": 834
+      },
+      "POST /api/extract-policy (agent 16)": {
+        "count": 1,
+        "p50": 850,
+        "p95": 850,
+        "p99": 850,
+        "min": 850,
+        "max": 850
+      },
+      "POST /api/extract-policy (agent 14)": {
+        "count": 1,
+        "p50": 853,
+        "p95": 853,
+        "p99": 853,
+        "min": 853,
+        "max": 853
+      },
+      "POST /api/extract-policy (agent 20)": {
+        "count": 1,
+        "p50": 854,
+        "p95": 854,
+        "p99": 854,
+        "min": 854,
+        "max": 854
+      },
+      "POST /api/extract-policy (agent 10)": {
+        "count": 1,
+        "p50": 863,
+        "p95": 863,
+        "p99": 863,
+        "min": 863,
+        "max": 863
+      },
+      "POST /api/extract-policy (agent 4)": {
+        "count": 1,
+        "p50": 866,
+        "p95": 866,
+        "p99": 866,
+        "min": 866,
+        "max": 866
+      },
+      "POST /api/extract-policy (agent 8)": {
+        "count": 1,
+        "p50": 865,
+        "p95": 865,
+        "p99": 865,
+        "min": 865,
+        "max": 865
+      },
+      "POST /api/extract-policy (agent 12)": {
+        "count": 1,
+        "p50": 869,
+        "p95": 869,
+        "p99": 869,
+        "min": 869,
+        "max": 869
+      },
+      "POST /api/extract-policy (agent 17)": {
+        "count": 1,
+        "p50": 868,
+        "p95": 868,
+        "p99": 868,
+        "min": 868,
+        "max": 868
+      },
+      "POST /api/extract-policy (agent 15)": {
+        "count": 1,
+        "p50": 870,
+        "p95": 870,
+        "p99": 870,
+        "min": 870,
+        "max": 870
+      },
+      "POST /api/extract-policy (agent 6)": {
+        "count": 1,
+        "p50": 888,
+        "p95": 888,
+        "p99": 888,
+        "min": 888,
+        "max": 888
+      },
+      "POST /api/extract-policy (agent 19)": {
+        "count": 1,
+        "p50": 894,
+        "p95": 894,
+        "p99": 894,
+        "min": 894,
+        "max": 894
+      },
+      "POST /api/extract-policy (agent 18)": {
+        "count": 1,
+        "p50": 919,
+        "p95": 919,
+        "p99": 919,
+        "min": 919,
+        "max": 919
+      },
+      "POST /api/extract-policy (agent 1)": {
+        "count": 1,
+        "p50": 1433,
+        "p95": 1433,
+        "p99": 1433,
+        "min": 1433,
+        "max": 1433
+      },
+      "POST /api/extract-policy (agent 13)": {
+        "count": 1,
+        "p50": 1631,
+        "p95": 1631,
+        "p99": 1631,
+        "min": 1631,
+        "max": 1631
+      },
+      "POST /api/extract-policy (agent 7)": {
+        "count": 1,
+        "p50": 1946,
+        "p95": 1946,
+        "p99": 1946,
+        "min": 1946,
+        "max": 1946
+      }
+    },
+    "errors": [
+      {
+        "label": "POST /api/extract-policy (agent 2)",
+        "statusCode": 503,
+        "detail": "fallbackToManual"
+      },
+      {
+        "label": "POST /api/extract-policy (agent 3)",
+        "statusCode": 503,
+        "detail": "fallbackToManual"
+      },
+      {
+        "label": "POST /api/extract-policy (agent 5)",
+        "statusCode": 503,
+        "detail": "fallbackToManual"
+      },
+      {
+        "label": "POST /api/extract-policy (agent 11)",
+        "statusCode": 503,
+        "detail": "fallbackToManual"
+      },
+      {
+        "label": "POST /api/extract-policy (agent 9)",
+        "statusCode": 503,
+        "detail": "fallbackToManual"
+      },
+      {
+        "label": "POST /api/extract-policy (agent 16)",
+        "statusCode": 503,
+        "detail": "fallbackToManual"
+      },
+      {
+        "label": "POST /api/extract-policy (agent 14)",
+        "statusCode": 503,
+        "detail": "fallbackToManual"
+      },
+      {
+        "label": "POST /api/extract-policy (agent 20)",
+        "statusCode": 503,
+        "detail": "fallbackToManual"
+      },
+      {
+        "label": "POST /api/extract-policy (agent 10)",
+        "statusCode": 503,
+        "detail": "fallbackToManual"
+      },
+      {
+        "label": "POST /api/extract-policy (agent 4)",
+        "statusCode": 503,
+        "detail": "fallbackToManual"
+      },
+      {
+        "label": "POST /api/extract-policy (agent 8)",
+        "statusCode": 503,
+        "detail": "fallbackToManual"
+      },
+      {
+        "label": "POST /api/extract-policy (agent 12)",
+        "statusCode": 503,
+        "detail": "fallbackToManual"
+      },
+      {
+        "label": "POST /api/extract-policy (agent 17)",
+        "statusCode": 503,
+        "detail": "fallbackToManual"
+      },
+      {
+        "label": "POST /api/extract-policy (agent 15)",
+        "statusCode": 503,
+        "detail": "fallbackToManual"
+      },
+      {
+        "label": "POST /api/extract-policy (agent 6)",
+        "statusCode": 503,
+        "detail": "fallbackToManual"
+      },
+      {
+        "label": "POST /api/extract-policy (agent 19)",
+        "statusCode": 503,
+        "detail": "fallbackToManual"
+      },
+      {
+        "label": "POST /api/extract-policy (agent 18)",
+        "statusCode": 503,
+        "detail": "fallbackToManual"
+      },
+      {
+        "label": "POST /api/extract-policy (agent 1)",
+        "statusCode": 503,
+        "detail": "fallbackToManual"
+      },
+      {
+        "label": "POST /api/extract-policy (agent 13)",
+        "statusCode": 503,
+        "detail": "fallbackToManual"
+      },
+      {
+        "label": "POST /api/extract-policy (agent 7)",
+        "statusCode": 503,
+        "detail": "fallbackToManual"
+      }
+    ]
+  }
+]

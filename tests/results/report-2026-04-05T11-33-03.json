@@ -1,0 +1,307 @@
+[
+  {
+    "scenario": "S1 - Authentication",
+    "totalRequests": 40,
+    "successCount": 40,
+    "errorCount": 0,
+    "successRate": "100.0%",
+    "wallTimeMs": 18235,
+    "p50": 709,
+    "p95": 6074,
+    "p99": 6237,
+    "breakdown": {
+      "POST /api/auth/callback/credentials": {
+        "count": 20,
+        "p50": 5063,
+        "p95": 6119,
+        "p99": 6237,
+        "min": 2785,
+        "max": 6237
+      },
+      "GET /api/auth/session": {
+        "count": 20,
+        "p50": 306,
+        "p95": 682,
+        "p99": 709,
+        "min": 293,
+        "max": 709
+      }
+    },
+    "errors": []
+  },
+  {
+    "scenario": "S7 - 20 Concurrent PDF Uploads",
+    "totalRequests": 20,
+    "successCount": 0,
+    "errorCount": 20,
+    "successRate": "0.0%",
+    "wallTimeMs": 8378,
+    "p50": 7451,
+    "p95": 8356,
+    "p99": 8369,
+    "breakdown": {
+      "POST /api/extract-policy (agent 11)": {
+        "count": 1,
+        "p50": 5640,
+        "p95": 5640,
+        "p99": 5640,
+        "min": 5640,
+        "max": 5640
+      },
+      "POST /api/extract-policy (agent 5)": {
+        "count": 1,
+        "p50": 5643,
+        "p95": 5643,
+        "p99": 5643,
+        "min": 5643,
+        "max": 5643
+      },
+      "POST /api/extract-policy (agent 6)": {
+        "count": 1,
+        "p50": 5644,
+        "p95": 5644,
+        "p99": 5644,
+        "min": 5644,
+        "max": 5644
+      },
+      "POST /api/extract-policy (agent 9)": {
+        "count": 1,
+        "p50": 5643,
+        "p95": 5643,
+        "p99": 5643,
+        "min": 5643,
+        "max": 5643
+      },
+      "POST /api/extract-policy (agent 12)": {
+        "count": 1,
+        "p50": 5642,
+        "p95": 5642,
+        "p99": 5642,
+        "min": 5642,
+        "max": 5642
+      },
+      "POST /api/extract-policy (agent 15)": {
+        "count": 1,
+        "p50": 5642,
+        "p95": 5642,
+        "p99": 5642,
+        "min": 5642,
+        "max": 5642
+      },
+      "POST /api/extract-policy (agent 19)": {
+        "count": 1,
+        "p50": 5644,
+        "p95": 5644,
+        "p99": 5644,
+        "min": 5644,
+        "max": 5644
+      },
+      "POST /api/extract-policy (agent 4)": {
+        "count": 1,
+        "p50": 5647,
+        "p95": 5647,
+        "p99": 5647,
+        "min": 5647,
+        "max": 5647
+      },
+      "POST /api/extract-policy (agent 1)": {
+        "count": 1,
+        "p50": 7287,
+        "p95": 7287,
+        "p99": 7287,
+        "min": 7287,
+        "max": 7287
+      },
+      "POST /api/extract-policy (agent 16)": {
+        "count": 1,
+        "p50": 7451,
+        "p95": 7451,
+        "p99": 7451,
+        "min": 7451,
+        "max": 7451
+      },
+      "POST /api/extract-policy (agent 2)": {
+        "count": 1,
+        "p50": 7756,
+        "p95": 7756,
+        "p99": 7756,
+        "min": 7756,
+        "max": 7756
+      },
+      "POST /api/extract-policy (agent 3)": {
+        "count": 1,
+        "p50": 7885,
+        "p95": 7885,
+        "p99": 7885,
+        "min": 7885,
+        "max": 7885
+      },
+      "POST /api/extract-policy (agent 20)": {
+        "count": 1,
+        "p50": 8125,
+        "p95": 8125,
+        "p99": 8125,
+        "min": 8125,
+        "max": 8125
+      },
+      "POST /api/extract-policy (agent 17)": {
+        "count": 1,
+        "p50": 8156,
+        "p95": 8156,
+        "p99": 8156,
+        "min": 8156,
+        "max": 8156
+      },
+      "POST /api/extract-policy (agent 13)": {
+        "count": 1,
+        "p50": 8291,
+        "p95": 8291,
+        "p99": 8291,
+        "min": 8291,
+        "max": 8291
+      },
+      "POST /api/extract-policy (agent 7)": {
+        "count": 1,
+        "p50": 8308,
+        "p95": 8308,
+        "p99": 8308,
+        "min": 8308,
+        "max": 8308
+      },
+      "POST /api/extract-policy (agent 14)": {
+        "count": 1,
+        "p50": 8321,
+        "p95": 8321,
+        "p99": 8321,
+        "min": 8321,
+        "max": 8321
+      },
+      "POST /api/extract-policy (agent 10)": {
+        "count": 1,
+        "p50": 8349,
+        "p95": 8349,
+        "p99": 8349,
+        "min": 8349,
+        "max": 8349
+      },
+      "POST /api/extract-policy (agent 18)": {
+        "count": 1,
+        "p50": 8356,
+        "p95": 8356,
+        "p99": 8356,
+        "min": 8356,
+        "max": 8356
+      },
+      "POST /api/extract-policy (agent 8)": {
+        "count": 1,
+        "p50": 8369,
+        "p95": 8369,
+        "p99": 8369,
+        "min": 8369,
+        "max": 8369
+      }
+    },
+    "errors": [
+      {
+        "label": "POST /api/extract-policy (agent 11)",
+        "statusCode": 500,
+        "detail": "Failed to extract data from PDF"
+      },
+      {
+        "label": "POST /api/extract-policy (agent 5)",
+        "statusCode": 500,
+        "detail": "Failed to extract data from PDF"
+      },
+      {
+        "label": "POST /api/extract-policy (agent 6)",
+        "statusCode": 500,
+        "detail": "Failed to extract data from PDF"
+      },
+      {
+        "label": "POST /api/extract-policy (agent 9)",
+        "statusCode": 500,
+        "detail": "Failed to extract data from PDF"
+      },
+      {
+        "label": "POST /api/extract-policy (agent 12)",
+        "statusCode": 500,
+        "detail": "Failed to extract data from PDF"
+      },
+      {
+        "label": "POST /api/extract-policy (agent 15)",
+        "statusCode": 500,
+        "detail": "Failed to extract data from PDF"
+      },
+      {
+        "label": "POST /api/extract-policy (agent 19)",
+        "statusCode": 500,
+        "detail": "Failed to extract data from PDF"
+      },
+      {
+        "label": "POST /api/extract-policy (agent 4)",
+        "statusCode": 500,
+        "detail": "Failed to extract data from PDF"
+      },
+      {
+        "label": "POST /api/extract-policy (agent 1)",
+        "statusCode": 500,
+        "detail": "Failed to extract data from PDF"
+      },
+      {
+        "label": "POST /api/extract-policy (agent 16)",
+        "statusCode": 500,
+        "detail": "Failed to extract data from PDF"
+      },
+      {
+        "label": "POST /api/extract-policy (agent 2)",
+        "statusCode": 500,
+        "detail": "Failed to extract data from PDF"
+      },
+      {
+        "label": "POST /api/extract-policy (agent 3)",
+        "statusCode": 500,
+        "detail": "Failed to extract data from PDF"
+      },
+      {
+        "label": "POST /api/extract-policy (agent 20)",
+        "statusCode": 500,
+        "detail": "Failed to extract data from PDF"
+      },
+      {
+        "label": "POST /api/extract-policy (agent 17)",
+        "statusCode": 500,
+        "detail": "Failed to extract data from PDF"
+      },
+      {
+        "label": "POST /api/extract-policy (agent 13)",
+        "statusCode": 500,
+        "detail": "Failed to extract data from PDF"
+      },
+      {
+        "label": "POST /api/extract-policy (agent 7)",
+        "statusCode": 500,
+        "detail": "Failed to extract data from PDF"
+      },
+      {
+        "label": "POST /api/extract-policy (agent 14)",
+        "statusCode": 500,
+        "detail": "Failed to extract data from PDF"
+      },
+      {
+        "label": "POST /api/extract-policy (agent 10)",
+        "statusCode": 500,
+        "detail": "Failed to extract data from PDF"
+      },
+      {
+        "label": "POST /api/extract-policy (agent 18)",
+        "statusCode": 500,
+        "detail": "Failed to extract data from PDF"
+      },
+      {
+        "label": "POST /api/extract-policy (agent 8)",
+        "statusCode": 500,
+        "detail": "Failed to extract data from PDF"
+      }
+    ]
+  }
+]

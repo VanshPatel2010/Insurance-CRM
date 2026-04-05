@@ -120,126 +120,11 @@ Rules:
 - Include ONLY the fields relevant to the identified policy type in details, set others to null
 `.trim();
 
-// ─── [TESTING] Text-based extraction prompt ───────────────────────────────────
-// Used by the new text strategy (PDF → plain text → LLM).
-// Same JSON contract as EXTRACTION_PROMPT above, just addressed to text input.
 
-const TEXT_EXTRACTION_PROMPT = `
-You are an expert insurance policy data extractor for Indian insurance policies.
-
-Below is the raw text extracted from the first 5 pages of an insurance policy PDF.
-Extract all details and return ONLY a valid JSON object.
-No explanation, no markdown code blocks, no extra text. Return raw JSON only.
-
-First identify the policy type:
-- motor    → vehicle/car/bike/two-wheeler/auto insurance
-- medical  → health/mediclaim/family floater insurance
-- fire     → property/fire/building/shop insurance
-- life     → life/term/endowment/ULIP/money back insurance
-
-Return this exact JSON structure (use null for fields not found):
-{
-  "type": "motor",
-  "confidence": 95,
-  "customerName": "",
-  "phone": "",
-  "email": "",
-  "address": "",
-  "policyNumber": "",
-  "premium": null,
-  "sumInsured": null,
-  "startDate": null,
-  "endDate": null,
-  "insurerName": "",
-  "details": {
-    "vehicleReg": "",
-    "make": "",
-    "model": "",
-    "year": null,
-    "fuelType": "",
-    "engineCC": null,
-    "idvValue": null,
-    "ncb": null,
-    "addOns": [],
-    "dateOfBirth": null,
-    "age": null,
-    "gender": "",
-    "bloodGroup": "",
-    "preExistingConditions": "",
-    "smoker": null,
-    "membersCount": null,
-    "memberNames": [],
-    "cashlessNetwork": "",
-    "propertyType": "",
-    "propertyAddress": "",
-    "builtUpArea": null,
-    "constructionType": "",
-    "propertyValue": null,
-    "stockValue": null,
-    "riskLocation": "",
-    "occupation": "",
-    "annualIncome": null,
-    "nomineeName": "",
-    "nomineeRelation": "",
-    "policyType": "",
-    "premiumFrequency": "",
-    "policyTerm": null,
-    "maturityDate": null
-  }
-}
-
-Rules:
-- Return numbers only for monetary values (no rupee symbol or commas)
-- All dates in YYYY-MM-DD format
-- confidence: 90-100 if policy type is clearly stated, 60-89 if reasonably identified, below 60 if uncertain
-- Return null for any field not found — never guess or fabricate
-- For Indian policies: amounts are in INR, interpret accordingly
-- Include ONLY the fields relevant to the identified policy type in details, set others to null
-
-PDF TEXT (first 5 pages):
-`.trim();
-
-// ─── [TESTING] PDF → plain text (first 5 pages) ───────────────────────────────
-
-/**
- * Extracts plain text from the first 5 pages of a PDF using pdfjs-dist.
- * No canvas / image rendering required — pure JS text layer extraction.
- */
-async function pdfToText(pdfBuffer: Buffer, maxPages = 5): Promise<string> {
-  const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs');
-  const { resolve } = await import('path');
-
-  pdfjs.GlobalWorkerOptions.workerSrc = `file://${resolve(
-    'node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs'
-  )}`;
-
-  const data = new Uint8Array(pdfBuffer);
-  const loadingTask = pdfjs.getDocument({ data });
-  const pdfDoc = await loadingTask.promise;
-
-  const pageCount = Math.min(pdfDoc.numPages, maxPages);
-  const pageTexts: string[] = [];
-
-  for (let i = 1; i <= pageCount; i++) {
-    const page = await pdfDoc.getPage(i);
-    const textContent = await page.getTextContent();
-    const pageText = textContent.items
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      .map((item: any) => ('str' in item ? item.str : ''))
-      .join(' ')
-      .replace(/\s+/g, ' ')
-      .trim();
-    pageTexts.push(`--- Page ${i} ---\n${pageText}`);
-  }
-
-  await pdfDoc.destroy();
-  return pageTexts.join('\n\n');
-}
 
 // ─── [ORIGINAL] PDF → JPEG base64 conversion (pdfjs-dist + @napi-rs/canvas) ──
 // Commented out — restore when switching back to the image-based strategy.
 
-/*
 async function pdfToJpegBase64(pdfBuffer: Buffer): Promise<string> {
   // Use the legacy build — it polyfills DOMMatrix and other browser APIs
   // that the default "build/pdf.mjs" requires but Node.js doesn't provide.
@@ -272,7 +157,6 @@ async function pdfToJpegBase64(pdfBuffer: Buffer): Promise<string> {
   const jpegBuffer = await (canvas as any).encode('jpeg', 85) as Buffer;
   return jpegBuffer.toString('base64');
 }
-*/
 
 // ─── JSON parsing helper ──────────────────────────────────────────────────────
 
@@ -285,176 +169,8 @@ function parseJsonResponse(raw: string): unknown {
   return JSON.parse(cleaned);
 }
 
-// ─── [TESTING] Text-based provider implementations ────────────────────────────
-// Each function receives the extracted PDF text and sends it as a text prompt.
+// ─── Image-based provider implementations ───────────
 
-/** [TEST] 1. Gemini — text prompt (no PDF/image upload). */
-async function tryGeminiText(pdfText: string): Promise<unknown> {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) throw new Error('GEMINI_API_KEY not configured');
-
-  const prompt = `${TEXT_EXTRACTION_PROMPT}\n\n${pdfText}`;
-
-  const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${apiKey}`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { temperature: 0.1, maxOutputTokens: 2000 },
-      }),
-    }
-  );
-
-  if (res.status === 429) {
-    await markCoolingDown('gemini');
-    throw new Error('Gemini 429: rate limited');
-  }
-
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(`Gemini ${res.status}: ${JSON.stringify(err)}`);
-  }
-
-  const json = await res.json();
-  const raw = json?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
-  if (!raw) throw new Error('Gemini returned empty response');
-  return parseJsonResponse(raw);
-}
-
-/** [TEST] 2. Groq — text prompt (Llama 4 Scout, no vision). */
-async function tryGroqText(pdfText: string): Promise<unknown> {
-  const apiKey = process.env.GROQ_API_KEY;
-  if (!apiKey) throw new Error('GROQ_API_KEY not configured');
-
-  const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: 'meta-llama/llama-4-scout-17b-16e-instruct',
-      messages: [{
-        role: 'user',
-        content: `${TEXT_EXTRACTION_PROMPT}\n\n${pdfText}`,
-      }],
-      temperature: 0.1,
-      max_tokens: 2000,
-    }),
-  });
-
-  if (res.status === 429) {
-    await markCoolingDown('groq');
-    throw new Error('Groq 429: rate limited');
-  }
-
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(`Groq ${res.status}: ${JSON.stringify(err)}`);
-  }
-
-  const json = await res.json();
-  const raw = json?.choices?.[0]?.message?.content?.trim();
-  if (!raw) throw new Error('Groq returned empty response');
-  return parseJsonResponse(raw);
-}
-
-/** [TEST] 3. HuggingFace — text prompt (Qwen2.5-VL-7B-Instruct, text-only message). */
-async function tryHuggingFaceText(pdfText: string): Promise<unknown> {
-  const apiKey = process.env.HUGGINGFACE_API_KEY;
-  if (!apiKey) throw new Error('HUGGINGFACE_API_KEY not configured');
-
-  const provider = process.env.HF_PROVIDER ?? 'fireworks-ai';
-  const model = process.env.HF_MODEL ?? 'Qwen/Qwen2.5-VL-7B-Instruct';
-
-  const res = await fetch(
-    `https://router.huggingface.co/${provider}/v1/chat/completions`,
-    {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model,
-        messages: [{
-          role: 'user',
-          content: `${TEXT_EXTRACTION_PROMPT}\n\n${pdfText}`,
-        }],
-        max_tokens: 2000,
-        temperature: 0.1,
-      }),
-    }
-  );
-
-  if (res.status === 429) {
-    await markCoolingDown('huggingface');
-    throw new Error('HuggingFace 429: rate limited');
-  }
-
-  if (res.status === 403) {
-    await markCoolingDown('huggingface');
-    throw new Error(
-      'HuggingFace 403: token missing Inference Providers permission — ' +
-      'regenerate at huggingface.co/settings/tokens'
-    );
-  }
-
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(`HuggingFace ${res.status}: ${JSON.stringify(err)}`);
-  }
-
-  const json = await res.json();
-  const raw = json?.choices?.[0]?.message?.content?.trim();
-  if (!raw) throw new Error('HuggingFace returned empty response');
-  return parseJsonResponse(raw);
-}
-
-/** [TEST] 4. Together AI — text prompt (Llama 3.2, no vision). */
-async function tryTogetherText(pdfText: string): Promise<unknown> {
-  const apiKey = process.env.TOGETHER_API_KEY;
-  if (!apiKey) throw new Error('TOGETHER_API_KEY not configured');
-
-  const res = await fetch('https://api.together.xyz/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: 'meta-llama/Llama-3.2-11B-Vision-Instruct-Turbo',
-      messages: [{
-        role: 'user',
-        content: `${TEXT_EXTRACTION_PROMPT}\n\n${pdfText}`,
-      }],
-      temperature: 0.1,
-      max_tokens: 2000,
-    }),
-  });
-
-  if (res.status === 429) {
-    await markCoolingDown('together');
-    throw new Error('Together AI 429: rate limited');
-  }
-
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(`Together AI ${res.status}: ${JSON.stringify(err)}`);
-  }
-
-  const json = await res.json();
-  const raw = json?.choices?.[0]?.message?.content?.trim();
-  if (!raw) throw new Error('Together AI returned empty response');
-  return parseJsonResponse(raw);
-}
-
-// ─── [ORIGINAL] Image-based provider implementations (commented out) ───────────
-// Restore these and swap the pipeline below when done testing the text strategy.
-
-/*
 async function tryGemini(pdfBuffer: Buffer): Promise<unknown> {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error('GEMINI_API_KEY not configured');
@@ -627,7 +343,6 @@ async function tryTogether(jpegBase64: string): Promise<unknown> {
   if (!raw) throw new Error('Together AI returned empty response');
   return parseJsonResponse(raw);
 }
-*/
 
 // ─── Main exported function ───────────────────────────────────────────────────
 
@@ -643,120 +358,6 @@ async function tryTogether(jpegBase64: string): Promise<unknown> {
  *   3. Replace the body of this function with the commented-out ORIGINAL block below
  */
 export async function extractPolicyData(pdfBuffer: Buffer): Promise<ExtractionResult> {
-  // ── [TESTING] Convert PDF → text (first 5 pages) ──────────────────────────
-  let pdfText: string;
-  try {
-    console.log('[aiExtraction] [TEXT STRATEGY] Extracting text from PDF (first 5 pages)…');
-    pdfText = await pdfToText(pdfBuffer, 5);
-    console.log(`[aiExtraction] [TEXT STRATEGY] Extracted ${pdfText.length} chars of text`);
-  } catch (err) {
-    console.error('[aiExtraction] [TEXT STRATEGY] PDF text extraction failed:', (err as Error).message);
-    return {
-      success: false,
-      fallbackToManual: true,
-      message: 'Failed to extract text from PDF. Please fill in the policy details manually.',
-    };
-  }
-
-  // ── Provider pipeline ────────────────────────────────────────────────────────
-
-  // 1. Gemini (text mode)
-  if (await isProviderAvailable('gemini')) {
-    const waitMs = await getWaitMs('gemini');
-    if (waitMs > 0) {
-      console.log(`[aiExtraction] Gemini throttled — wait ${waitMs}ms — skipping`);
-    } else {
-      try {
-        console.log('[aiExtraction] Trying Gemini (text)…');
-        const data = await tryGeminiText(pdfText);
-        await recordRequest('gemini');
-        await incrementUsage('gemini');
-        console.log('[aiExtraction] ✓ Gemini (text) succeeded');
-        return { success: true, data, provider: 'gemini-text' };
-      } catch (err) {
-        console.warn('[aiExtraction] Gemini (text) failed:', (err as Error).message);
-      }
-    }
-  } else {
-    console.log('[aiExtraction] Gemini daily limit reached — skipping');
-  }
-
-  // 2. Groq (text mode)
-  if (await isProviderAvailable('groq')) {
-    const waitMs = await getWaitMs('groq');
-    if (waitMs > 0) {
-      console.log(`[aiExtraction] Groq throttled — wait ${waitMs}ms — skipping`);
-    } else {
-      try {
-        console.log('[aiExtraction] Trying Groq (text)…');
-        const data = await tryGroqText(pdfText);
-        await recordRequest('groq');
-        await incrementUsage('groq');
-        console.log('[aiExtraction] ✓ Groq (text) succeeded');
-        return { success: true, data, provider: 'groq-text' };
-      } catch (err) {
-        console.warn('[aiExtraction] Groq (text) failed:', (err as Error).message);
-      }
-    }
-  } else {
-    console.log('[aiExtraction] Groq daily limit reached — skipping');
-  }
-
-  // 3. HuggingFace (text mode)
-  if (await isProviderAvailable('huggingface')) {
-    const waitMs = await getWaitMs('huggingface');
-    if (waitMs > 0) {
-      console.log(`[aiExtraction] HuggingFace throttled — wait ${waitMs}ms — skipping`);
-    } else {
-      try {
-        console.log('[aiExtraction] Trying HuggingFace (text)…');
-        const data = await tryHuggingFaceText(pdfText);
-        await recordRequest('huggingface');
-        await incrementUsage('huggingface');
-        console.log('[aiExtraction] ✓ HuggingFace (text) succeeded');
-        return { success: true, data, provider: 'huggingface-text' };
-      } catch (err) {
-        console.warn('[aiExtraction] HuggingFace (text) failed:', (err as Error).message);
-      }
-    }
-  } else {
-    console.log('[aiExtraction] HuggingFace daily limit reached — skipping');
-  }
-
-  // 4. Together AI (text mode)
-  if (await isProviderAvailable('together')) {
-    const waitMs = await getWaitMs('together');
-    if (waitMs > 0) {
-      console.log(`[aiExtraction] Together AI throttled — wait ${waitMs}ms — skipping`);
-    } else {
-      try {
-        console.log('[aiExtraction] Trying Together AI (text)…');
-        const data = await tryTogetherText(pdfText);
-        await recordRequest('together');
-        await incrementUsage('together');
-        console.log('[aiExtraction] ✓ Together AI (text) succeeded');
-        return { success: true, data, provider: 'together-text' };
-      } catch (err) {
-        console.warn('[aiExtraction] Together AI (text) failed:', (err as Error).message);
-      }
-    }
-  } else {
-    console.log('[aiExtraction] Together AI daily limit reached — skipping');
-  }
-
-  // All providers exhausted
-  console.error('[aiExtraction] All providers failed or exhausted for today');
-  return {
-    success: false,
-    fallbackToManual: true,
-    message:
-      'All AI providers are currently unavailable or have reached their daily limit. ' +
-      'Please fill in the policy details manually.',
-  };
-
-  // ── [ORIGINAL IMAGE STRATEGY — DO NOT DELETE] ────────────────────────────────
-  // Uncomment and remove the TEXT STRATEGY block above to restore the original flow.
-  /*
   let jpegBase64: string | null = null;
 
   async function getImage(): Promise<string> {
@@ -861,5 +462,4 @@ export async function extractPolicyData(pdfBuffer: Buffer): Promise<ExtractionRe
       'All AI providers are currently unavailable or have reached their daily limit. ' +
       'Please fill in the policy details manually.',
   };
-  */
 }

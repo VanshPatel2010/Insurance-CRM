@@ -1,0 +1,72 @@
+[
+  {
+    "scenario": "S1 - Auth (localhost)",
+    "totalRequests": 20,
+    "successCount": 20,
+    "errorCount": 0,
+    "successRate": "100.0%",
+    "wallTimeMs": 12539,
+    "p50": 4396,
+    "p95": 5452,
+    "p99": 5456,
+    "breakdown": {
+      "POST /api/auth/callback/credentials": {
+        "count": 20,
+        "p50": 4396,
+        "p95": 5452,
+        "p99": 5456,
+        "min": 2137,
+        "max": 5456
+      }
+    },
+    "errors": []
+  },
+  {
+    "scenario": "S7 - 20 Concurrent PDF Uploads (localhost)",
+    "totalRequests": 20,
+    "successCount": 15,
+    "errorCount": 5,
+    "successRate": "75.0%",
+    "wallTimeMs": 6504,
+    "p50": 5128,
+    "p95": 6332,
+    "p99": 6499,
+    "breakdown": {
+      "POST /api/extract-policy": {
+        "count": 20,
+        "p50": 5128,
+        "p95": 6332,
+        "p99": 6499,
+        "min": 4516,
+        "max": 6499
+      }
+    },
+    "errors": [
+      {
+        "label": "POST /api/extract-policy",
+        "statusCode": 503,
+        "detail": "fallbackToManual"
+      },
+      {
+        "label": "POST /api/extract-policy",
+        "statusCode": 503,
+        "detail": "fallbackToManual"
+      },
+      {
+        "label": "POST /api/extract-policy",
+        "statusCode": 503,
+        "detail": "fallbackToManual"
+      },
+      {
+        "label": "POST /api/extract-policy",
+        "statusCode": 503,
+        "detail": "fallbackToManual"
+      },
+      {
+        "label": "POST /api/extract-policy",
+        "statusCode": 503,
+        "detail": "fallbackToManual"
+      }
+    ]
+  }
+]

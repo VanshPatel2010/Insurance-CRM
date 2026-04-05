@@ -1,0 +1,46 @@
+[
+  {
+    "scenario": "S1 - Auth (localhost)",
+    "totalRequests": 20,
+    "successCount": 20,
+    "errorCount": 0,
+    "successRate": "100.0%",
+    "wallTimeMs": 10509,
+    "p50": 4845,
+    "p95": 5584,
+    "p99": 5585,
+    "breakdown": {
+      "POST /api/auth/callback/credentials": {
+        "count": 20,
+        "p50": 4845,
+        "p95": 5584,
+        "p99": 5585,
+        "min": 4338,
+        "max": 5585
+      }
+    },
+    "errors": []
+  },
+  {
+    "scenario": "S7 - 20 Concurrent PDF Uploads (localhost)",
+    "totalRequests": 20,
+    "successCount": 20,
+    "errorCount": 0,
+    "successRate": "100.0%",
+    "wallTimeMs": 4357,
+    "p50": 3516,
+    "p95": 4214,
+    "p99": 4352,
+    "breakdown": {
+      "POST /api/extract-policy": {
+        "count": 20,
+        "p50": 3516,
+        "p95": 4214,
+        "p99": 4352,
+        "min": 3057,
+        "max": 4352
+      }
+    },
+    "errors": []
+  }
+]

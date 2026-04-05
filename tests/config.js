@@ -1,7 +1,7 @@
 // tests/config.js
 // Shared configuration for all load test scenarios
 
-export const BASE_URL = 'https://insurance-crm-in.vercel.app';
+export const BASE_URL = 'http://localhost:3000';
 
 // 20 pre-created test accounts
 export const TEST_AGENTS = Array.from({ length: 20 }, (_, i) => ({
