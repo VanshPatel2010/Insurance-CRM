@@ -1,0 +1,1187 @@
+[
+  {
+    "scenario": "S1 - Authentication",
+    "totalRequests": 40,
+    "successCount": 40,
+    "errorCount": 0,
+    "successRate": "100.0%",
+    "wallTimeMs": 8896,
+    "p50": 787,
+    "p95": 6370,
+    "p99": 6505,
+    "breakdown": {
+      "POST /api/auth/callback/credentials": {
+        "count": 20,
+        "p50": 5297,
+        "p95": 6468,
+        "p99": 6505,
+        "min": 3559,
+        "max": 6505
+      },
+      "GET /api/auth/session": {
+        "count": 20,
+        "p50": 443,
+        "p95": 652,
+        "p99": 787,
+        "min": 290,
+        "max": 787
+      }
+    },
+    "errors": []
+  },
+  {
+    "scenario": "S6 - Page Speed",
+    "totalRequests": 90,
+    "successCount": 90,
+    "errorCount": 0,
+    "successRate": "100.0%",
+    "wallTimeMs": 8240,
+    "p50": 608,
+    "p95": 4152,
+    "p99": 5115,
+    "breakdown": {
+      "Landing Page": {
+        "count": 10,
+        "p50": 727,
+        "p95": 1104,
+        "p99": 1104,
+        "min": 573,
+        "max": 1104
+      },
+      "Login Page": {
+        "count": 10,
+        "p50": 109,
+        "p95": 157,
+        "p99": 157,
+        "min": 91,
+        "max": 157
+      },
+      "Signup Page": {
+        "count": 10,
+        "p50": 98,
+        "p95": 107,
+        "p99": 107,
+        "min": 83,
+        "max": 107
+      },
+      "Dashboard": {
+        "count": 20,
+        "p50": 4040,
+        "p95": 4780,
+        "p99": 5115,
+        "min": 1888,
+        "max": 5115
+      },
+      "Customer List": {
+        "count": 20,
+        "p50": 667,
+        "p95": 846,
+        "p99": 1116,
+        "min": 584,
+        "max": 1116
+      },
+      "Add Customer": {
+        "count": 20,
+        "p50": 488,
+        "p95": 593,
+        "p99": 604,
+        "min": 338,
+        "max": 604
+      }
+    },
+    "errors": []
+  },
+  {
+    "scenario": "S2 - Dashboard Load",
+    "totalRequests": 80,
+    "successCount": 60,
+    "errorCount": 20,
+    "successRate": "75.0%",
+    "wallTimeMs": 6711,
+    "p50": 847,
+    "p95": 3847,
+    "p99": 4781,
+    "breakdown": {
+      "GET /api/dashboard": {
+        "count": 20,
+        "p50": 374,
+        "p95": 426,
+        "p99": 428,
+        "min": 362,
+        "max": 428
+      },
+      "GET /api/customers": {
+        "count": 20,
+        "p50": 901,
+        "p95": 3847,
+        "p99": 4781,
+        "min": 834,
+        "max": 4781
+      },
+      "GET /api/customers?search=test": {
+        "count": 20,
+        "p50": 904,
+        "p95": 4199,
+        "p99": 4205,
+        "min": 790,
+        "max": 4205
+      },
+      "GET /api/customers?type=motor": {
+        "count": 20,
+        "p50": 831,
+        "p95": 875,
+        "p99": 1232,
+        "min": 724,
+        "max": 1232
+      }
+    },
+    "errors": [
+      {
+        "label": "GET /api/dashboard",
+        "statusCode": 404,
+        "detail": "null"
+      },
+      {
+        "label": "GET /api/dashboard",
+        "statusCode": 404,
+        "detail": "null"
+      },
+      {
+        "label": "GET /api/dashboard",
+        "statusCode": 404,
+        "detail": "null"
+      },
+      {
+        "label": "GET /api/dashboard",
+        "statusCode": 404,
+        "detail": "null"
+      },
+      {
+        "label": "GET /api/dashboard",
+        "statusCode": 404,
+        "detail": "null"
+      },
+      {
+        "label": "GET /api/dashboard",
+        "statusCode": 404,
+        "detail": "null"
+      },
+      {
+        "label": "GET /api/dashboard",
+        "statusCode": 404,
+        "detail": "null"
+      },
+      {
+        "label": "GET /api/dashboard",
+        "statusCode": 404,
+        "detail": "null"
+      },
+      {
+        "label": "GET /api/dashboard",
+        "statusCode": 404,
+        "detail": "null"
+      },
+      {
+        "label": "GET /api/dashboard",
+        "statusCode": 404,
+        "detail": "null"
+      },
+      {
+        "label": "GET /api/dashboard",
+        "statusCode": 404,
+        "detail": "null"
+      },
+      {
+        "label": "GET /api/dashboard",
+        "statusCode": 404,
+        "detail": "null"
+      },
+      {
+        "label": "GET /api/dashboard",
+        "statusCode": 404,
+        "detail": "null"
+      },
+      {
+        "label": "GET /api/dashboard",
+        "statusCode": 404,
+        "detail": "null"
+      },
+      {
+        "label": "GET /api/dashboard",
+        "statusCode": 404,
+        "detail": "null"
+      },
+      {
+        "label": "GET /api/dashboard",
+        "statusCode": 404,
+        "detail": "null"
+      },
+      {
+        "label": "GET /api/dashboard",
+        "statusCode": 404,
+        "detail": "null"
+      },
+      {
+        "label": "GET /api/dashboard",
+        "statusCode": 404,
+        "detail": "null"
+      },
+      {
+        "label": "GET /api/dashboard",
+        "statusCode": 404,
+        "detail": "null"
+      },
+      {
+        "label": "GET /api/dashboard",
+        "statusCode": 404,
+        "detail": "null"
+      }
+    ]
+  },
+  {
+    "scenario": "S3 - CRUD Operations",
+    "totalRequests": 50,
+    "successCount": 32,
+    "errorCount": 18,
+    "successRate": "64.0%",
+    "wallTimeMs": 9539,
+    "p50": 1190,
+    "p95": 1669,
+    "p99": 4198,
+    "breakdown": {
+      "POST /api/customers": {
+        "count": 20,
+        "p50": 963,
+        "p95": 1242,
+        "p99": 1258,
+        "min": 800,
+        "max": 1258
+      },
+      "GET /api/customers (for update)": {
+        "count": 5,
+        "p50": 754,
+        "p95": 4198,
+        "p99": 4198,
+        "min": 747,
+        "max": 4198
+      },
+      "GET /api/customers (for delete)": {
+        "count": 5,
+        "p50": 1367,
+        "p95": 1426,
+        "p99": 1426,
+        "min": 1359,
+        "max": 1426
+      },
+      "DELETE /api/customers/[id] (cleanup)": {
+        "count": 20,
+        "p50": 1270,
+        "p95": 1593,
+        "p99": 1669,
+        "min": 819,
+        "max": 1669
+      }
+    },
+    "errors": [
+      {
+        "label": "DELETE /api/customers/[id] (cleanup)",
+        "statusCode": 404,
+        "detail": "{\"error\":\"Customer not found\"}"
+      },
+      {
+        "label": "DELETE /api/customers/[id] (cleanup)",
+        "statusCode": 404,
+        "detail": "{\"error\":\"Customer not found\"}"
+      },
+      {
+        "label": "DELETE /api/customers/[id] (cleanup)",
+        "statusCode": 404,
+        "detail": "{\"error\":\"Customer not found\"}"
+      },
+      {
+        "label": "DELETE /api/customers/[id] (cleanup)",
+        "statusCode": 404,
+        "detail": "{\"error\":\"Customer not found\"}"
+      },
+      {
+        "label": "DELETE /api/customers/[id] (cleanup)",
+        "statusCode": 404,
+        "detail": "{\"error\":\"Customer not found\"}"
+      },
+      {
+        "label": "DELETE /api/customers/[id] (cleanup)",
+        "statusCode": 404,
+        "detail": "{\"error\":\"Customer not found\"}"
+      },
+      {
+        "label": "DELETE /api/customers/[id] (cleanup)",
+        "statusCode": 404,
+        "detail": "{\"error\":\"Customer not found\"}"
+      },
+      {
+        "label": "DELETE /api/customers/[id] (cleanup)",
+        "statusCode": 404,
+        "detail": "{\"error\":\"Customer not found\"}"
+      },
+      {
+        "label": "DELETE /api/customers/[id] (cleanup)",
+        "statusCode": 404,
+        "detail": "{\"error\":\"Customer not found\"}"
+      },
+      {
+        "label": "DELETE /api/customers/[id] (cleanup)",
+        "statusCode": 404,
+        "detail": "{\"error\":\"Customer not found\"}"
+      },
+      {
+        "label": "DELETE /api/customers/[id] (cleanup)",
+        "statusCode": 404,
+        "detail": "{\"error\":\"Customer not found\"}"
+      },
+      {
+        "label": "DELETE /api/customers/[id] (cleanup)",
+        "statusCode": 404,
+        "detail": "{\"error\":\"Customer not found\"}"
+      },
+      {
+        "label": "DELETE /api/customers/[id] (cleanup)",
+        "statusCode": 404,
+        "detail": "{\"error\":\"Customer not found\"}"
+      },
+      {
+        "label": "DELETE /api/customers/[id] (cleanup)",
+        "statusCode": 404,
+        "detail": "{\"error\":\"Customer not found\"}"
+      },
+      {
+        "label": "DELETE /api/customers/[id] (cleanup)",
+        "statusCode": 404,
+        "detail": "{\"error\":\"Customer not found\"}"
+      },
+      {
+        "label": "DELETE /api/customers/[id] (cleanup)",
+        "statusCode": 404,
+        "detail": "{\"error\":\"Customer not found\"}"
+      },
+      {
+        "label": "DELETE /api/customers/[id] (cleanup)",
+        "statusCode": 404,
+        "detail": "{\"error\":\"Customer not found\"}"
+      },
+      {
+        "label": "DELETE /api/customers/[id] (cleanup)",
+        "statusCode": 404,
+        "detail": "{\"error\":\"Customer not found\"}"
+      }
+    ]
+  },
+  {
+    "scenario": "S4 - Search & Filter",
+    "totalRequests": 100,
+    "successCount": 100,
+    "errorCount": 0,
+    "successRate": "100.0%",
+    "wallTimeMs": 5456,
+    "p50": 814,
+    "p95": 1427,
+    "p99": 2001,
+    "breakdown": {
+      "GET /api/customers?page=1&limit=50&search=Patel&type=fire&status=Active": {
+        "count": 1,
+        "p50": 817,
+        "p95": 817,
+        "p99": 817,
+        "min": 817,
+        "max": 817
+      },
+      "GET /api/customers?page=1&limit=50&search=Singh&type=life&status=Active": {
+        "count": 1,
+        "p50": 819,
+        "p95": 819,
+        "p99": 819,
+        "min": 819,
+        "max": 819
+      },
+      "GET /api/customers?page=1&limit=50&search=9876&status=Active": {
+        "count": 1,
+        "p50": 818,
+        "p95": 818,
+        "p99": 818,
+        "min": 818,
+        "max": 818
+      },
+      "GET /api/customers?page=1&limit=50&search=Kumar&type=medical&status=Active": {
+        "count": 1,
+        "p50": 827,
+        "p95": 827,
+        "p99": 827,
+        "min": 827,
+        "max": 827
+      },
+      "GET /api/customers?page=1&limit=50&search=POL-&type=motor&status=Active": {
+        "count": 1,
+        "p50": 832,
+        "p95": 832,
+        "p99": 832,
+        "min": 832,
+        "max": 832
+      },
+      "GET /api/customers?page=1&limit=50&search=Sharma&type=medical&status=Active": {
+        "count": 1,
+        "p50": 833,
+        "p95": 833,
+        "p99": 833,
+        "min": 833,
+        "max": 833
+      },
+      "GET /api/customers?page=1&limit=50&search=Kumar&type=fire&status=Active": {
+        "count": 1,
+        "p50": 834,
+        "p95": 834,
+        "p99": 834,
+        "min": 834,
+        "max": 834
+      },
+      "GET /api/customers?page=1&limit=50&search=Singh&status=Active": {
+        "count": 1,
+        "p50": 838,
+        "p95": 838,
+        "p99": 838,
+        "min": 838,
+        "max": 838
+      },
+      "GET /api/customers?page=1&limit=50&search=Patel&type=life&status=Active": {
+        "count": 1,
+        "p50": 839,
+        "p95": 839,
+        "p99": 839,
+        "min": 839,
+        "max": 839
+      },
+      "GET /api/customers?page=1&limit=50&search=POL-&type=medical&status=Active": {
+        "count": 1,
+        "p50": 853,
+        "p95": 853,
+        "p99": 853,
+        "min": 853,
+        "max": 853
+      },
+      "GET /api/customers?page=1&limit=50&search=9876&type=motor&status=Active": {
+        "count": 1,
+        "p50": 857,
+        "p95": 857,
+        "p99": 857,
+        "min": 857,
+        "max": 857
+      },
+      "GET /api/customers?page=1&limit=50&search=Kumar&type=life&status=Active": {
+        "count": 1,
+        "p50": 856,
+        "p95": 856,
+        "p99": 856,
+        "min": 856,
+        "max": 856
+      },
+      "GET /api/customers?page=1&limit=50&search=9876&type=medical&status=Active": {
+        "count": 1,
+        "p50": 857,
+        "p95": 857,
+        "p99": 857,
+        "min": 857,
+        "max": 857
+      },
+      "GET /api/customers?page=1&limit=50&search=Sharma&type=fire&status=Active": {
+        "count": 1,
+        "p50": 858,
+        "p95": 858,
+        "p99": 858,
+        "min": 858,
+        "max": 858
+      },
+      "GET /api/customers?page=1&limit=50&search=POL-&type=fire&status=Active": {
+        "count": 1,
+        "p50": 857,
+        "p95": 857,
+        "p99": 857,
+        "min": 857,
+        "max": 857
+      },
+      "GET /api/customers?page=1&limit=50&search=Kumar&status=Active": {
+        "count": 1,
+        "p50": 862,
+        "p95": 862,
+        "p99": 862,
+        "min": 862,
+        "max": 862
+      },
+      "GET /api/customers?page=1&limit=50&search=Sharma&type=life&status=Active": {
+        "count": 1,
+        "p50": 863,
+        "p95": 863,
+        "p99": 863,
+        "min": 863,
+        "max": 863
+      },
+      "GET /api/customers?page=1&limit=50&search=Singh&type=motor&status=Active": {
+        "count": 1,
+        "p50": 866,
+        "p95": 866,
+        "p99": 866,
+        "min": 866,
+        "max": 866
+      },
+      "GET /api/customers?page=1&limit=50&search=Patel&status=Active": {
+        "count": 1,
+        "p50": 1061,
+        "p95": 1061,
+        "p99": 1061,
+        "min": 1061,
+        "max": 1061
+      },
+      "GET /api/customers?page=1&limit=50&search=Singh&type=life&status=Expired": {
+        "count": 1,
+        "p50": 790,
+        "p95": 790,
+        "p99": 790,
+        "min": 790,
+        "max": 790
+      },
+      "GET /api/customers?page=1&limit=50&search=9876&status=Expired": {
+        "count": 1,
+        "p50": 801,
+        "p95": 801,
+        "p99": 801,
+        "min": 801,
+        "max": 801
+      },
+      "GET /api/customers?page=1&limit=50&search=Singh&status=Expired": {
+        "count": 1,
+        "p50": 855,
+        "p95": 855,
+        "p99": 855,
+        "min": 855,
+        "max": 855
+      },
+      "GET /api/customers?page=1&limit=50&search=Sharma&type=fire&status=Expired": {
+        "count": 1,
+        "p50": 858,
+        "p95": 858,
+        "p99": 858,
+        "min": 858,
+        "max": 858
+      },
+      "GET /api/customers?page=1&limit=50&search=Patel&type=fire&status=Expired": {
+        "count": 1,
+        "p50": 934,
+        "p95": 934,
+        "p99": 934,
+        "min": 934,
+        "max": 934
+      },
+      "GET /api/customers?page=1&limit=50&search=Kumar&type=fire&status=Expired": {
+        "count": 1,
+        "p50": 953,
+        "p95": 953,
+        "p99": 953,
+        "min": 953,
+        "max": 953
+      },
+      "GET /api/customers?page=1&limit=50&search=Patel&type=life&status=Expired": {
+        "count": 1,
+        "p50": 955,
+        "p95": 955,
+        "p99": 955,
+        "min": 955,
+        "max": 955
+      },
+      "GET /api/customers?page=1&limit=50&search=Sharma&type=medical&status=Expired": {
+        "count": 1,
+        "p50": 991,
+        "p95": 991,
+        "p99": 991,
+        "min": 991,
+        "max": 991
+      },
+      "GET /api/customers?page=1&limit=50&search=Patel&status=Expired": {
+        "count": 1,
+        "p50": 988,
+        "p95": 988,
+        "p99": 988,
+        "min": 988,
+        "max": 988
+      },
+      "GET /api/customers?page=1&limit=50&search=Patel&type=motor&status=Expired": {
+        "count": 1,
+        "p50": 1100,
+        "p95": 1100,
+        "p99": 1100,
+        "min": 1100,
+        "max": 1100
+      },
+      "GET /api/customers?page=1&limit=50&search=POL-&type=medical&status=Expired": {
+        "count": 1,
+        "p50": 1115,
+        "p95": 1115,
+        "p99": 1115,
+        "min": 1115,
+        "max": 1115
+      },
+      "GET /api/customers?page=1&limit=50&search=Patel&type=motor&status=Active": {
+        "count": 1,
+        "p50": 2037,
+        "p95": 2037,
+        "p99": 2037,
+        "min": 2037,
+        "max": 2037
+      },
+      "GET /api/customers?page=1&limit=50&search=Kumar&status=Expired": {
+        "count": 1,
+        "p50": 1166,
+        "p95": 1166,
+        "p99": 1166,
+        "min": 1166,
+        "max": 1166
+      },
+      "GET /api/customers?page=1&limit=50&search=Kumar&type=life&status=Expired": {
+        "count": 1,
+        "p50": 1172,
+        "p95": 1172,
+        "p99": 1172,
+        "min": 1172,
+        "max": 1172
+      },
+      "GET /api/customers?page=1&limit=50&search=Sharma&type=life&status=Expired": {
+        "count": 1,
+        "p50": 1173,
+        "p95": 1173,
+        "p99": 1173,
+        "min": 1173,
+        "max": 1173
+      },
+      "GET /api/customers?page=1&limit=50&search=Singh&type=motor&status=Expired": {
+        "count": 1,
+        "p50": 982,
+        "p95": 982,
+        "p99": 982,
+        "min": 982,
+        "max": 982
+      },
+      "GET /api/customers?page=1&limit=50&search=9876&type=medical&status=Expired": {
+        "count": 1,
+        "p50": 1319,
+        "p95": 1319,
+        "p99": 1319,
+        "min": 1319,
+        "max": 1319
+      },
+      "GET /api/customers?page=1&limit=50&search=9876&type=motor&status=Expired": {
+        "count": 1,
+        "p50": 1427,
+        "p95": 1427,
+        "p99": 1427,
+        "min": 1427,
+        "max": 1427
+      },
+      "GET /api/customers?page=1&limit=50&search=POL-&type=motor&status=Expiring+Soon": {
+        "count": 1,
+        "p50": 726,
+        "p95": 726,
+        "p99": 726,
+        "min": 726,
+        "max": 726
+      },
+      "GET /api/customers?page=1&limit=50&search=9876&status=Expiring+Soon": {
+        "count": 1,
+        "p50": 834,
+        "p95": 834,
+        "p99": 834,
+        "min": 834,
+        "max": 834
+      },
+      "GET /api/customers?page=1&limit=50&search=9876&type=motor&status=Expiring+Soon": {
+        "count": 1,
+        "p50": 770,
+        "p95": 770,
+        "p99": 770,
+        "min": 770,
+        "max": 770
+      },
+      "GET /api/customers?page=1&limit=50&search=Kumar&type=life&status=Expiring+Soon": {
+        "count": 1,
+        "p50": 774,
+        "p95": 774,
+        "p99": 774,
+        "min": 774,
+        "max": 774
+      },
+      "GET /api/customers?page=1&limit=50&search=Singh&type=life&status=Expiring+Soon": {
+        "count": 1,
+        "p50": 766,
+        "p95": 766,
+        "p99": 766,
+        "min": 766,
+        "max": 766
+      },
+      "GET /api/customers?page=1&limit=50&search=Singh&status=Expiring+Soon": {
+        "count": 1,
+        "p50": 736,
+        "p95": 736,
+        "p99": 736,
+        "min": 736,
+        "max": 736
+      },
+      "GET /api/customers?page=1&limit=50&search=Kumar&type=fire&status=Expiring+Soon": {
+        "count": 1,
+        "p50": 851,
+        "p95": 851,
+        "p99": 851,
+        "min": 851,
+        "max": 851
+      },
+      "GET /api/customers?page=1&limit=50&search=Singh&type=motor&status=Expiring+Soon": {
+        "count": 1,
+        "p50": 848,
+        "p95": 848,
+        "p99": 848,
+        "min": 848,
+        "max": 848
+      },
+      "GET /api/customers?page=1&limit=50&search=Singh&type=medical&status=Expiring+Soon": {
+        "count": 1,
+        "p50": 748,
+        "p95": 748,
+        "p99": 748,
+        "min": 748,
+        "max": 748
+      },
+      "GET /api/customers?page=1&limit=50&search=Kumar&status=Expiring+Soon": {
+        "count": 1,
+        "p50": 738,
+        "p95": 738,
+        "p99": 738,
+        "min": 738,
+        "max": 738
+      },
+      "GET /api/customers?page=1&limit=50&search=POL-&type=fire&status=Expired": {
+        "count": 1,
+        "p50": 1929,
+        "p95": 1929,
+        "p99": 1929,
+        "min": 1929,
+        "max": 1929
+      },
+      "GET /api/customers?page=1&limit=50&search=POL-&type=motor&status=Expired": {
+        "count": 1,
+        "p50": 1977,
+        "p95": 1977,
+        "p99": 1977,
+        "min": 1977,
+        "max": 1977
+      },
+      "GET /api/customers?page=1&limit=50&search=9876&type=medical&status=Expiring+Soon": {
+        "count": 1,
+        "p50": 760,
+        "p95": 760,
+        "p99": 760,
+        "min": 760,
+        "max": 760
+      },
+      "GET /api/customers?page=1&limit=50&search=Patel&type=motor&status=Expiring+Soon": {
+        "count": 1,
+        "p50": 798,
+        "p95": 798,
+        "p99": 798,
+        "min": 798,
+        "max": 798
+      },
+      "GET /api/customers?page=1&limit=50&search=Singh&type=medical&status=Expired": {
+        "count": 1,
+        "p50": 823,
+        "p95": 823,
+        "p99": 823,
+        "min": 823,
+        "max": 823
+      },
+      "GET /api/customers?page=1&limit=50&search=Patel&status=Expiring+Soon": {
+        "count": 1,
+        "p50": 869,
+        "p95": 869,
+        "p99": 869,
+        "min": 869,
+        "max": 869
+      },
+      "GET /api/customers?page=1&limit=50&search=POL-&type=fire&status=Expiring+Soon": {
+        "count": 1,
+        "p50": 730,
+        "p95": 730,
+        "p99": 730,
+        "min": 730,
+        "max": 730
+      },
+      "GET /api/customers?page=1&limit=50&search=POL-&type=medical&status=Expiring+Soon": {
+        "count": 1,
+        "p50": 784,
+        "p95": 784,
+        "p99": 784,
+        "min": 784,
+        "max": 784
+      },
+      "GET /api/customers?page=1&limit=50&search=Sharma&type=medical": {
+        "count": 1,
+        "p50": 770,
+        "p95": 770,
+        "p99": 770,
+        "min": 770,
+        "max": 770
+      },
+      "GET /api/customers?page=1&limit=50&search=POL-&type=motor": {
+        "count": 1,
+        "p50": 730,
+        "p95": 730,
+        "p99": 730,
+        "min": 730,
+        "max": 730
+      },
+      "GET /api/customers?page=1&limit=50&search=POL-&type=medical": {
+        "count": 1,
+        "p50": 730,
+        "p95": 730,
+        "p99": 730,
+        "min": 730,
+        "max": 730
+      },
+      "GET /api/customers?page=1&limit=50&search=Patel": {
+        "count": 1,
+        "p50": 734,
+        "p95": 734,
+        "p99": 734,
+        "min": 734,
+        "max": 734
+      },
+      "GET /api/customers?page=1&limit=50&search=9876": {
+        "count": 1,
+        "p50": 739,
+        "p95": 739,
+        "p99": 739,
+        "min": 739,
+        "max": 739
+      },
+      "GET /api/customers?page=1&limit=50&search=9876&type=motor": {
+        "count": 1,
+        "p50": 739,
+        "p95": 739,
+        "p99": 739,
+        "min": 739,
+        "max": 739
+      },
+      "GET /api/customers?page=1&limit=50&search=Patel&type=life": {
+        "count": 1,
+        "p50": 736,
+        "p95": 736,
+        "p99": 736,
+        "min": 736,
+        "max": 736
+      },
+      "GET /api/customers?page=1&limit=50&search=9876&type=medical": {
+        "count": 1,
+        "p50": 728,
+        "p95": 728,
+        "p99": 728,
+        "min": 728,
+        "max": 728
+      },
+      "GET /api/customers?page=1&limit=50&search=9876&type=fire": {
+        "count": 1,
+        "p50": 714,
+        "p95": 714,
+        "p99": 714,
+        "min": 714,
+        "max": 714
+      },
+      "GET /api/customers?page=1&limit=50&search=Patel&type=motor": {
+        "count": 1,
+        "p50": 728,
+        "p95": 728,
+        "p99": 728,
+        "min": 728,
+        "max": 728
+      },
+      "GET /api/customers?page=1&limit=50&search=Sharma&type=medical&status=Expiring+Soon": {
+        "count": 1,
+        "p50": 753,
+        "p95": 753,
+        "p99": 753,
+        "min": 753,
+        "max": 753
+      },
+      "GET /api/customers?page=1&limit=50&search=Sharma&type=life&status=Expiring+Soon": {
+        "count": 1,
+        "p50": 779,
+        "p95": 779,
+        "p99": 779,
+        "min": 779,
+        "max": 779
+      },
+      "GET /api/customers?page=1&limit=50&search=9876&type=fire&status=Expiring+Soon": {
+        "count": 1,
+        "p50": 724,
+        "p95": 724,
+        "p99": 724,
+        "min": 724,
+        "max": 724
+      },
+      "GET /api/customers?page=1&limit=50&search=Singh&type=medical": {
+        "count": 1,
+        "p50": 782,
+        "p95": 782,
+        "p99": 782,
+        "min": 782,
+        "max": 782
+      },
+      "GET /api/customers?page=1&limit=50&search=POL-&type=fire": {
+        "count": 1,
+        "p50": 848,
+        "p95": 848,
+        "p99": 848,
+        "min": 848,
+        "max": 848
+      },
+      "GET /api/customers?page=1&limit=50&search=Singh&type=motor": {
+        "count": 1,
+        "p50": 743,
+        "p95": 743,
+        "p99": 743,
+        "min": 743,
+        "max": 743
+      },
+      "GET /api/customers?page=1&limit=50&search=Patel&type=life&status=Expiring+Soon": {
+        "count": 1,
+        "p50": 1864,
+        "p95": 1864,
+        "p99": 1864,
+        "min": 1864,
+        "max": 1864
+      },
+      "GET /api/customers?page=1&limit=50&search=Sharma&type=life": {
+        "count": 1,
+        "p50": 751,
+        "p95": 751,
+        "p99": 751,
+        "min": 751,
+        "max": 751
+      },
+      "GET /api/customers?page=1&limit=50&search=Sharma&type=fire": {
+        "count": 1,
+        "p50": 739,
+        "p95": 739,
+        "p99": 739,
+        "min": 739,
+        "max": 739
+      },
+      "GET /api/customers?page=1&limit=50&search=Sharma&type=fire&status=Expiring+Soon": {
+        "count": 1,
+        "p50": 2001,
+        "p95": 2001,
+        "p99": 2001,
+        "min": 2001,
+        "max": 2001
+      },
+      "GET /api/customers?page=5": {
+        "count": 20,
+        "p50": 761,
+        "p95": 885,
+        "p99": 989,
+        "min": 718,
+        "max": 989
+      },
+      "GET /api/customers?page=1&limit=50&search=Kumar&type=fire": {
+        "count": 1,
+        "p50": 742,
+        "p95": 742,
+        "p99": 742,
+        "min": 742,
+        "max": 742
+      },
+      "GET /api/customers?page=1&limit=50&search=Kumar": {
+        "count": 1,
+        "p50": 747,
+        "p95": 747,
+        "p99": 747,
+        "min": 747,
+        "max": 747
+      },
+      "GET /api/customers?page=1&limit=50&search=POL-&type=life": {
+        "count": 1,
+        "p50": 737,
+        "p95": 737,
+        "p99": 737,
+        "min": 737,
+        "max": 737
+      },
+      "GET /api/customers?page=1&limit=50&search=Singh": {
+        "count": 1,
+        "p50": 738,
+        "p95": 738,
+        "p99": 738,
+        "min": 738,
+        "max": 738
+      },
+      "GET /api/customers?page=1&limit=50&search=Kumar&type=life": {
+        "count": 1,
+        "p50": 724,
+        "p95": 724,
+        "p99": 724,
+        "min": 724,
+        "max": 724
+      }
+    },
+    "errors": []
+  },
+  {
+    "scenario": "S5 - PDF Extraction",
+    "totalRequests": 27,
+    "successCount": 5,
+    "errorCount": 22,
+    "successRate": "18.5%",
+    "wallTimeMs": 36388,
+    "p50": 655,
+    "p95": 3053,
+    "p99": 3668,
+    "breakdown": {
+      "POST /api/extract-policy (unauth)": {
+        "count": 1,
+        "p50": 312,
+        "p95": 312,
+        "p99": 312,
+        "min": 312,
+        "max": 312
+      },
+      "POST /api/extract-policy (empty)": {
+        "count": 1,
+        "p50": 319,
+        "p95": 319,
+        "p99": 319,
+        "min": 319,
+        "max": 319
+      },
+      "POST /api/extract-policy (probe)": {
+        "count": 5,
+        "p50": 2974,
+        "p95": 3668,
+        "p99": 3668,
+        "min": 2436,
+        "max": 3668
+      },
+      "POST /api/extract-policy (concurrent fake)": {
+        "count": 20,
+        "p50": 545,
+        "p95": 1017,
+        "p99": 1018,
+        "min": 454,
+        "max": 1018
+      }
+    },
+    "errors": [
+      {
+        "label": "POST /api/extract-policy (unauth)",
+        "statusCode": 401,
+        "detail": "{\"error\":\"Unauthorized\"}"
+      },
+      {
+        "label": "POST /api/extract-policy (empty)",
+        "statusCode": 400,
+        "detail": "{\"error\":\"No PDF file provided\"}"
+      },
+      {
+        "label": "POST /api/extract-policy (concurrent fake)",
+        "statusCode": 400,
+        "detail": "{\"error\":\"File must be a PDF\"}"
+      },
+      {
+        "label": "POST /api/extract-policy (concurrent fake)",
+        "statusCode": 400,
+        "detail": "{\"error\":\"File must be a PDF\"}"
+      },
+      {
+        "label": "POST /api/extract-policy (concurrent fake)",
+        "statusCode": 400,
+        "detail": "{\"error\":\"File must be a PDF\"}"
+      },
+      {
+        "label": "POST /api/extract-policy (concurrent fake)",
+        "statusCode": 400,
+        "detail": "{\"error\":\"File must be a PDF\"}"
+      },
+      {
+        "label": "POST /api/extract-policy (concurrent fake)",
+        "statusCode": 400,
+        "detail": "{\"error\":\"File must be a PDF\"}"
+      },
+      {
+        "label": "POST /api/extract-policy (concurrent fake)",
+        "statusCode": 400,
+        "detail": "{\"error\":\"File must be a PDF\"}"
+      },
+      {
+        "label": "POST /api/extract-policy (concurrent fake)",
+        "statusCode": 400,
+        "detail": "{\"error\":\"File must be a PDF\"}"
+      },
+      {
+        "label": "POST /api/extract-policy (concurrent fake)",
+        "statusCode": 400,
+        "detail": "{\"error\":\"File must be a PDF\"}"
+      },
+      {
+        "label": "POST /api/extract-policy (concurrent fake)",
+        "statusCode": 400,
+        "detail": "{\"error\":\"File must be a PDF\"}"
+      },
+      {
+        "label": "POST /api/extract-policy (concurrent fake)",
+        "statusCode": 400,
+        "detail": "{\"error\":\"File must be a PDF\"}"
+      },
+      {
+        "label": "POST /api/extract-policy (concurrent fake)",
+        "statusCode": 400,
+        "detail": "{\"error\":\"File must be a PDF\"}"
+      },
+      {
+        "label": "POST /api/extract-policy (concurrent fake)",
+        "statusCode": 400,
+        "detail": "{\"error\":\"File must be a PDF\"}"
+      },
+      {
+        "label": "POST /api/extract-policy (concurrent fake)",
+        "statusCode": 400,
+        "detail": "{\"error\":\"File must be a PDF\"}"
+      },
+      {
+        "label": "POST /api/extract-policy (concurrent fake)",
+        "statusCode": 400,
+        "detail": "{\"error\":\"File must be a PDF\"}"
+      },
+      {
+        "label": "POST /api/extract-policy (concurrent fake)",
+        "statusCode": 400,
+        "detail": "{\"error\":\"File must be a PDF\"}"
+      },
+      {
+        "label": "POST /api/extract-policy (concurrent fake)",
+        "statusCode": 400,
+        "detail": "{\"error\":\"File must be a PDF\"}"
+      },
+      {
+        "label": "POST /api/extract-policy (concurrent fake)",
+        "statusCode": 400,
+        "detail": "{\"error\":\"File must be a PDF\"}"
+      },
+      {
+        "label": "POST /api/extract-policy (concurrent fake)",
+        "statusCode": 400,
+        "detail": "{\"error\":\"File must be a PDF\"}"
+      }
+    ]
+  }
+]

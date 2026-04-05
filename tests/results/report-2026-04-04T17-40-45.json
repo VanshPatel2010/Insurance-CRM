@@ -1,0 +1,112 @@
+[
+  {
+    "scenario": "S1 - Auth (localhost)",
+    "totalRequests": 20,
+    "successCount": 20,
+    "errorCount": 0,
+    "successRate": "100.0%",
+    "wallTimeMs": 11848,
+    "p50": 4605,
+    "p95": 5446,
+    "p99": 5449,
+    "breakdown": {
+      "POST /api/auth/callback/credentials": {
+        "count": 20,
+        "p50": 4605,
+        "p95": 5446,
+        "p99": 5449,
+        "min": 1870,
+        "max": 5449
+      }
+    },
+    "errors": []
+  },
+  {
+    "scenario": "S7 - 20 Concurrent PDF Uploads (localhost)",
+    "totalRequests": 20,
+    "successCount": 7,
+    "errorCount": 13,
+    "successRate": "35.0%",
+    "wallTimeMs": 5838,
+    "p50": 5800,
+    "p95": 5825,
+    "p99": 5832,
+    "breakdown": {
+      "POST /api/extract-policy": {
+        "count": 20,
+        "p50": 5800,
+        "p95": 5825,
+        "p99": 5832,
+        "min": 3784,
+        "max": 5832
+      }
+    },
+    "errors": [
+      {
+        "label": "POST /api/extract-policy",
+        "statusCode": 503,
+        "detail": "fallbackToManual"
+      },
+      {
+        "label": "POST /api/extract-policy",
+        "statusCode": 503,
+        "detail": "fallbackToManual"
+      },
+      {
+        "label": "POST /api/extract-policy",
+        "statusCode": 503,
+        "detail": "fallbackToManual"
+      },
+      {
+        "label": "POST /api/extract-policy",
+        "statusCode": 503,
+        "detail": "fallbackToManual"
+      },
+      {
+        "label": "POST /api/extract-policy",
+        "statusCode": 503,
+        "detail": "fallbackToManual"
+      },
+      {
+        "label": "POST /api/extract-policy",
+        "statusCode": 503,
+        "detail": "fallbackToManual"
+      },
+      {
+        "label": "POST /api/extract-policy",
+        "statusCode": 503,
+        "detail": "fallbackToManual"
+      },
+      {
+        "label": "POST /api/extract-policy",
+        "statusCode": 503,
+        "detail": "fallbackToManual"
+      },
+      {
+        "label": "POST /api/extract-policy",
+        "statusCode": 503,
+        "detail": "fallbackToManual"
+      },
+      {
+        "label": "POST /api/extract-policy",
+        "statusCode": 503,
+        "detail": "fallbackToManual"
+      },
+      {
+        "label": "POST /api/extract-policy",
+        "statusCode": 503,
+        "detail": "fallbackToManual"
+      },
+      {
+        "label": "POST /api/extract-policy",
+        "statusCode": 503,
+        "detail": "fallbackToManual"
+      },
+      {
+        "label": "POST /api/extract-policy",
+        "statusCode": 503,
+        "detail": "fallbackToManual"
+      }
+    ]
+  }
+]

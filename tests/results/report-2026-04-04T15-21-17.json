@@ -1,0 +1,62 @@
+[
+  {
+    "scenario": "S1 - Authentication",
+    "totalRequests": 20,
+    "successCount": 20,
+    "errorCount": 0,
+    "successRate": "100.0%",
+    "wallTimeMs": 2260,
+    "p50": 309,
+    "p95": 1122,
+    "p99": 1297,
+    "breakdown": {
+      "POST /api/auth/callback/credentials": {
+        "count": 20,
+        "p50": 309,
+        "p95": 1122,
+        "p99": 1297,
+        "min": 286,
+        "max": 1297
+      }
+    },
+    "errors": []
+  },
+  {
+    "scenario": "S6 - Page Speed",
+    "totalRequests": 30,
+    "successCount": 30,
+    "errorCount": 0,
+    "successRate": "100.0%",
+    "wallTimeMs": 1949,
+    "p50": 295,
+    "p95": 1248,
+    "p99": 1250,
+    "breakdown": {
+      "Landing Page": {
+        "count": 10,
+        "p50": 1244,
+        "p95": 1250,
+        "p99": 1250,
+        "min": 1237,
+        "max": 1250
+      },
+      "Login Page": {
+        "count": 10,
+        "p50": 110,
+        "p95": 313,
+        "p99": 313,
+        "min": 92,
+        "max": 313
+      },
+      "Signup Page": {
+        "count": 10,
+        "p50": 77,
+        "p95": 374,
+        "p99": 374,
+        "min": 71,
+        "max": 374
+      }
+    },
+    "errors": []
+  }
+]

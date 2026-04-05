@@ -8,28 +8,28 @@ import {
   MotorPolicy, MedicalPolicy, FirePolicy, LifePolicy,
   MemberInfo,
 } from '@/lib/types';
-import { Car, Heart, Flame, Shield, Check, ChevronRight, ChevronLeft, Save, X, Upload, FileText, Loader2, AlertTriangle, AlertCircle, CheckCircle2 } from 'lucide-react';
-import { pdfQueue, QueueItem } from '@/lib/pdfQueue';
-import { formatFileSize, estimateQueueTime } from '@/lib/formatFileSize';
+import {
+  Car, Heart, Flame, Shield,
+  Check, ChevronRight, ChevronLeft, Save, X,
+  Upload, Loader2, AlertTriangle, AlertCircle, CheckCircle2,
+} from 'lucide-react';
 
-const typeOptions: { type: PolicyType; label: string; desc: string; icon: typeof Car; color: string; bg: string; }[] = [
-  { type: 'motor',   label: 'Motor',   desc: 'Vehicle / Auto insurance', icon: Car,    color: '#185FA5', bg: '#e9f2fc' },
-  { type: 'medical', label: 'Medical', desc: 'Health & hospitalization',  icon: Heart,  color: '#3B6D11', bg: '#edf7e4' },
-  { type: 'fire',    label: 'Fire',    desc: 'Property & fire coverage',  icon: Flame,  color: '#BA7517', bg: '#fef4e0' },
-  { type: 'life',    label: 'Life',    desc: 'Life & term insurance',     icon: Shield, color: '#534AB7', bg: '#eeecfb' },
+const typeOptions: {
+  type: PolicyType; label: string; desc: string; icon: typeof Car; color: string; bg: string;
+}[] = [
+  { type: 'motor',   label: 'Motor',   desc: 'Vehicle / Auto insurance',   icon: Car,    color: '#185FA5', bg: '#e9f2fc' },
+  { type: 'medical', label: 'Medical', desc: 'Health & hospitalization',    icon: Heart,  color: '#3B6D11', bg: '#edf7e4' },
+  { type: 'fire',    label: 'Fire',    desc: 'Property & fire coverage',    icon: Flame,  color: '#BA7517', bg: '#fef4e0' },
+  { type: 'life',    label: 'Life',    desc: 'Life & term insurance',       icon: Shield, color: '#534AB7', bg: '#eeecfb' },
 ];
 
 type Errors = Record<string, string>;
 
-// ── Field component defined at module level to avoid remounting on re-render ──
+// ── Field component — defined at module level, never remounts ─────────────────
 function Field({
   label, name, required, error, children,
 }: {
-  label: string;
-  name: string;
-  required?: boolean;
-  error?: string;
-  children: React.ReactNode;
+  label: string; name: string; required?: boolean; error?: string; children: React.ReactNode;
 }) {
   return (
     <div className="form-group">
@@ -42,6 +42,7 @@ function Field({
   );
 }
 
+// ── Empty state factories ─────────────────────────────────────────────────────
 const emptyBase = () => ({
   customerName: '', phone: '', email: '', address: '',
   policyNumber: '', sumInsured: '', premiumAmount: '',
@@ -58,44 +59,51 @@ const emptyMedical = () => ({
   cashlessHospitalNetwork: '',
 });
 const emptyFire = () => ({
-  propertyType: '' as '' | 'Residential' | 'Commercial' | 'Industrial', propertyAddress: '', builtUpArea: '',
-  constructionType: '' as '' | 'RCC' | 'Wood' | 'Mixed', propertyValue: '', stockValue: '', riskLocation: '',
+  propertyType: '' as '' | 'Residential' | 'Commercial' | 'Industrial',
+  propertyAddress: '', builtUpArea: '',
+  constructionType: '' as '' | 'RCC' | 'Wood' | 'Mixed',
+  propertyValue: '', stockValue: '', riskLocation: '',
 });
 const emptyLife = () => ({
   dateOfBirth: '', age: '', gender: '' as '' | 'Male' | 'Female' | 'Other', occupation: '',
   annualIncome: '', smoker: '' as '' | 'Yes' | 'No', nomineeName: '', nomineeRelation: '',
-  lifePolicyType: '' as '' | 'Term' | 'Endowment' | 'ULIP' | 'Money Back', sumAssured: '', premiumFrequency: '' as '' | 'Monthly' | 'Quarterly' | 'Annual',
+  lifePolicyType: '' as '' | 'Term' | 'Endowment' | 'ULIP' | 'Money Back',
+  sumAssured: '', premiumFrequency: '' as '' | 'Monthly' | 'Quarterly' | 'Annual',
   maturityDate: '', policyTerm: '',
 });
 
+// ─────────────────────────────────────────────────────────────────────────────
 export default function NewCustomerForm() {
-  const router = useRouter();
+  const router       = useRouter();
   const searchParams = useSearchParams();
-  const editId = searchParams.get('id');
+  const editId       = searchParams.get('id');
 
-  const [step, setStep] = useState(1);
+  const [step, setStep]               = useState(1);
   const [selectedType, setSelectedType] = useState<PolicyType | null>(null);
-  const [errors, setErrors] = useState<Errors>({});
-  const [mounted, setMounted] = useState(false);
+  const [errors, setErrors]           = useState<Errors>({});
+  const [mounted, setMounted]         = useState(false);
 
-  const [base, setBase] = useState(emptyBase());
-  const [motor, setMotor] = useState(emptyMotor());
+  const [base,    setBase]    = useState(emptyBase());
+  const [motor,   setMotor]   = useState(emptyMotor());
   const [medical, setMedical] = useState(emptyMedical());
-  const [fire, setFire] = useState(emptyFire());
-  const [life, setLife] = useState(emptyLife());
-  const [submitting, setSubmitting] = useState(false);
+  const [fire,    setFire]    = useState(emptyFire());
+  const [life,    setLife]    = useState(emptyLife());
+
+  const [submitting,  setSubmitting]  = useState(false);
   const [submitError, setSubmitError] = useState('');
 
-  // ── PDF Upload mode ─────────────────────────────────────────────────────────
-  const [entryMode, setEntryMode] = useState<'manual' | 'pdf'>('manual');
-  const [queueItems, setQueueItems] = useState<QueueItem[]>([]);
-  const [selectedResultId, setSelectedResultId] = useState<string | null>(null);
-  const [wasExtracted, setWasExtracted] = useState(false);
+  // ── PDF mode state ────────────────────────────────────────────────────────
+  const [entryMode, setEntryMode]                 = useState<'manual' | 'pdf'>('manual');
+  const [wasExtracted, setWasExtracted]           = useState(false);
   const [extractionConfidence, setExtractionConfidence] = useState(100);
-  const [isDragging, setIsDragging] = useState(false);
+  const [isDragging, setIsDragging]               = useState(false);
+  const [isExtracting, setIsExtracting]           = useState(false);
+  const [fileError, setFileError]                 = useState('');
+  const [extractionError, setExtractionError]     = useState('');
+  const [selectedFileName, setSelectedFileName]   = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [fileErrors, setFileErrors] = useState<string[]>([]);
 
+  // ── Load existing customer for edit mode ──────────────────────────────────
   useEffect(() => {
     if (!editId) { setMounted(true); return; }
     getCustomer(editId)
@@ -104,67 +112,67 @@ export default function NewCustomerForm() {
         setSelectedType(p.type as PolicyType);
         setStep(2);
         setBase({
-          customerName: String(p.customerName ?? ''),
-          phone:         String(p.phone ?? ''),
-          email:         String(p.email ?? ''),
-          address:       String(p.address ?? ''),
-          policyNumber:  String(p.policyNumber ?? ''),
-          sumInsured:    String(p.sumInsured ?? ''),
-          premiumAmount: String(p.premiumAmount ?? ''),
-          startDate:     String(p.startDate ?? ''),
-          endDate:       String(p.endDate ?? ''),
+          customerName:  String(p.customerName  ?? ''),
+          phone:         String(p.phone         ?? ''),
+          email:         String(p.email         ?? ''),
+          address:       String(p.address       ?? ''),
+          policyNumber:  String(p.policyNumber  ?? ''),
+          sumInsured:    String(p.sumInsured     ?? ''),
+          premiumAmount: String(p.premiumAmount  ?? ''),
+          startDate:     String(p.startDate      ?? ''),
+          endDate:       String(p.endDate        ?? ''),
         });
         const d = p.details as Record<string, unknown>;
         if (p.type === 'motor') {
-          setMotor({ vehicleMake: String(d.vehicleMake ?? ''), vehicleModel: String(d.vehicleModel ?? ''), vehicleYear: String(d.vehicleYear ?? ''),
-            registrationNumber: String(d.registrationNumber ?? ''), engineCC: String(d.engineCC ?? ''), fuelType: String(d.fuelType ?? '') as MotorPolicy['fuelType'],
-            idvValue: String(d.idvValue ?? ''), ncbPercent: String(d.ncbPercent ?? ''), addOns: String(d.addOns ?? '') } as unknown as Omit<MotorPolicy, keyof Policy>);
+          setMotor({
+            vehicleMake: String(d.vehicleMake ?? ''), vehicleModel: String(d.vehicleModel ?? ''),
+            vehicleYear: String(d.vehicleYear ?? ''), registrationNumber: String(d.registrationNumber ?? ''),
+            engineCC: String(d.engineCC ?? ''), fuelType: String(d.fuelType ?? '') as MotorPolicy['fuelType'],
+            idvValue: String(d.idvValue ?? ''), ncbPercent: String(d.ncbPercent ?? ''),
+            addOns: String(d.addOns ?? ''),
+          } as unknown as Omit<MotorPolicy, keyof Policy>);
         } else if (p.type === 'medical') {
-          setMedical({ dateOfBirth: String(d.dateOfBirth ?? ''), age: String(d.age ?? ''), gender: (d.gender as MedicalPolicy['gender']) ?? '',
-            bloodGroup: String(d.bloodGroup ?? ''), preExistingConditions: String(d.preExistingConditions ?? ''), smoker: (d.smoker as MedicalPolicy['smoker']) ?? '',
-            numberOfMembers: String(d.numberOfMembers ?? '1'), members: (d.members as MemberInfo[]) ?? [{ name: '', age: '' }],
-            cashlessHospitalNetwork: String(d.cashlessHospitalNetwork ?? '') });
+          setMedical({
+            dateOfBirth: String(d.dateOfBirth ?? ''), age: String(d.age ?? ''),
+            gender: (d.gender as MedicalPolicy['gender']) ?? '', bloodGroup: String(d.bloodGroup ?? ''),
+            preExistingConditions: String(d.preExistingConditions ?? ''),
+            smoker: (d.smoker as MedicalPolicy['smoker']) ?? '',
+            numberOfMembers: String(d.numberOfMembers ?? '1'),
+            members: (d.members as MemberInfo[]) ?? [{ name: '', age: '' }],
+            cashlessHospitalNetwork: String(d.cashlessHospitalNetwork ?? ''),
+          });
         } else if (p.type === 'fire') {
-          setFire({ propertyType: (d.propertyType as FirePolicy['propertyType']) ?? '', propertyAddress: String(d.propertyAddress ?? ''), builtUpArea: String(d.builtUpArea ?? ''),
-            constructionType: (d.constructionType as FirePolicy['constructionType']) ?? '', propertyValue: String(d.propertyValue ?? ''),
-            stockValue: String(d.stockValue ?? ''), riskLocation: String(d.riskLocation ?? '') });
+          setFire({
+            propertyType: (d.propertyType as FirePolicy['propertyType']) ?? '',
+            propertyAddress: String(d.propertyAddress ?? ''), builtUpArea: String(d.builtUpArea ?? ''),
+            constructionType: (d.constructionType as FirePolicy['constructionType']) ?? '',
+            propertyValue: String(d.propertyValue ?? ''), stockValue: String(d.stockValue ?? ''),
+            riskLocation: String(d.riskLocation ?? ''),
+          });
         } else if (p.type === 'life') {
-          setLife({ dateOfBirth: String(d.dateOfBirth ?? ''), age: String(d.age ?? ''), gender: (d.gender as LifePolicy['gender']) ?? '', occupation: String(d.occupation ?? ''),
-            annualIncome: String(d.annualIncome ?? ''), smoker: (d.smoker as LifePolicy['smoker']) ?? '', nomineeName: String(d.nomineeName ?? ''),
-            nomineeRelation: String(d.nomineeRelation ?? ''), lifePolicyType: (d.lifePolicyType as LifePolicy['lifePolicyType']) ?? '', sumAssured: String(d.sumAssured ?? ''),
-            premiumFrequency: (d.premiumFrequency as LifePolicy['premiumFrequency']) ?? '', maturityDate: String(d.maturityDate ?? ''), policyTerm: String(d.policyTerm ?? '') });
+          setLife({
+            dateOfBirth: String(d.dateOfBirth ?? ''), age: String(d.age ?? ''),
+            gender: (d.gender as LifePolicy['gender']) ?? '', occupation: String(d.occupation ?? ''),
+            annualIncome: String(d.annualIncome ?? ''), smoker: (d.smoker as LifePolicy['smoker']) ?? '',
+            nomineeName: String(d.nomineeName ?? ''), nomineeRelation: String(d.nomineeRelation ?? ''),
+            lifePolicyType: (d.lifePolicyType as LifePolicy['lifePolicyType']) ?? '',
+            sumAssured: String(d.sumAssured ?? ''),
+            premiumFrequency: (d.premiumFrequency as LifePolicy['premiumFrequency']) ?? '',
+            maturityDate: String(d.maturityDate ?? ''), policyTerm: String(d.policyTerm ?? ''),
+          });
         }
       })
       .catch(() => router.push('/dashboard/customers'))
       .finally(() => setMounted(true));
-  }, [editId]);
-
-  // ── Queue subscription — must be before early return to respect Rules of Hooks ──
-  // eslint-disable-next-line react-hooks/rules-of-hooks
-  useEffect(() => {
-    const unsub = pdfQueue.subscribe(setQueueItems);
-    setQueueItems(pdfQueue.getQueue());
-    return unsub;
-  }, []);
-
-  // Watch for a completed extraction to auto-fill the form
-  // eslint-disable-next-line react-hooks/rules-of-hooks
-  useEffect(() => {
-    if (!selectedResultId) return;
-    const done = queueItems.find(
-      (item) => item.id === selectedResultId && item.status === 'done' && item.result
-    );
-    if (done?.result) {
-      autoFillForm(done.result);
-    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [queueItems, selectedResultId]);
+  }, [editId]);
 
   if (!mounted) return null;
 
+  // ── Auto-fill helper ──────────────────────────────────────────────────────
   function autoFillForm(data: Record<string, unknown>) {
     if (!data) return;
-    const d = (data.details ?? {}) as Record<string, unknown>;
+    const d    = (data.details ?? {}) as Record<string, unknown>;
     const type = data.type as PolicyType | undefined;
 
     if (type && ['motor', 'medical', 'fire', 'life'].includes(type)) {
@@ -185,10 +193,10 @@ export default function NewCustomerForm() {
 
     if (type === 'motor') {
       setMotor({
-        vehicleMake:        String(d.make         ?? ''),
-        vehicleModel:       String(d.model        ?? ''),
-        vehicleYear:        d.year   != null ? String(d.year)   : '',
-        registrationNumber: String(d.vehicleReg   ?? ''),
+        vehicleMake:        String(d.make      ?? ''),
+        vehicleModel:       String(d.model     ?? ''),
+        vehicleYear:        d.year    != null ? String(d.year)    : '',
+        registrationNumber: String(d.vehicleReg ?? ''),
         engineCC:           d.engineCC != null ? String(d.engineCC) : '',
         fuelType:           String(d.fuelType ?? '') as MotorPolicy['fuelType'],
         idvValue:           d.idvValue != null ? String(d.idvValue) : '',
@@ -196,12 +204,11 @@ export default function NewCustomerForm() {
         addOns:             Array.isArray(d.addOns) ? (d.addOns as string[]).join(', ') : String(d.addOns ?? ''),
       } as unknown as Omit<MotorPolicy, keyof Policy>);
     } else if (type === 'medical') {
-      const dob = String(d.dateOfBirth ?? '');
+      const dob         = String(d.dateOfBirth ?? '');
       const memberNames = Array.isArray(d.memberNames) ? d.memberNames as string[] : [];
-      const count = d.membersCount != null ? Number(d.membersCount) : Math.max(1, memberNames.length);
+      const count       = d.membersCount != null ? Number(d.membersCount) : Math.max(1, memberNames.length);
       const members: MemberInfo[] = Array.from({ length: count }, (_, i) => ({
-        name: memberNames[i] ?? '',
-        age: '',
+        name: memberNames[i] ?? '', age: '',
       }));
       setMedical({
         dateOfBirth: dob,
@@ -216,30 +223,30 @@ export default function NewCustomerForm() {
       });
     } else if (type === 'fire') {
       setFire({
-        propertyType: String(d.propertyType ?? '') as FirePolicy['propertyType'],
-        propertyAddress: String(d.propertyAddress ?? ''),
-        builtUpArea: d.builtUpArea != null ? String(d.builtUpArea) : '',
+        propertyType:     String(d.propertyType ?? '')     as FirePolicy['propertyType'],
+        propertyAddress:  String(d.propertyAddress ?? ''),
+        builtUpArea:      d.builtUpArea    != null ? String(d.builtUpArea)    : '',
         constructionType: String(d.constructionType ?? '') as FirePolicy['constructionType'],
-        propertyValue: d.propertyValue != null ? String(d.propertyValue) : '',
-        stockValue: d.stockValue != null ? String(d.stockValue) : '',
-        riskLocation: String(d.riskLocation ?? ''),
+        propertyValue:    d.propertyValue  != null ? String(d.propertyValue)  : '',
+        stockValue:       d.stockValue     != null ? String(d.stockValue)     : '',
+        riskLocation:     String(d.riskLocation ?? ''),
       });
     } else if (type === 'life') {
       const dob = String(d.dateOfBirth ?? '');
       setLife({
-        dateOfBirth: dob,
-        age: dob ? String(calculateAge(dob)) : (d.age != null ? String(d.age) : ''),
-        gender: String(d.gender ?? '') as LifePolicy['gender'],
-        occupation: String(d.occupation ?? ''),
-        annualIncome: d.annualIncome != null ? String(d.annualIncome) : '',
-        smoker: d.smoker === true ? 'Yes' : d.smoker === false ? 'No' : '' as LifePolicy['smoker'],
-        nomineeName: String(d.nomineeName ?? ''),
-        nomineeRelation: String(d.nomineeRelation ?? ''),
-        lifePolicyType: String(d.policyType ?? '') as LifePolicy['lifePolicyType'],
-        sumAssured: data.sumInsured != null ? String(data.sumInsured) : '',
-        premiumFrequency: String(d.premiumFrequency ?? '') as LifePolicy['premiumFrequency'],
-        maturityDate: String(d.maturityDate ?? ''),
-        policyTerm: d.policyTerm != null ? String(d.policyTerm) : '',
+        dateOfBirth:       dob,
+        age:               dob ? String(calculateAge(dob)) : (d.age != null ? String(d.age) : ''),
+        gender:            String(d.gender ?? '')            as LifePolicy['gender'],
+        occupation:        String(d.occupation ?? ''),
+        annualIncome:      d.annualIncome != null ? String(d.annualIncome) : '',
+        smoker:            d.smoker === true ? 'Yes' : d.smoker === false ? 'No' : '' as LifePolicy['smoker'],
+        nomineeName:       String(d.nomineeName ?? ''),
+        nomineeRelation:   String(d.nomineeRelation ?? ''),
+        lifePolicyType:    String(d.policyType ?? '')        as LifePolicy['lifePolicyType'],
+        sumAssured:        data.sumInsured != null ? String(data.sumInsured) : '',
+        premiumFrequency:  String(d.premiumFrequency ?? '')  as LifePolicy['premiumFrequency'],
+        maturityDate:      String(d.maturityDate ?? ''),
+        policyTerm:        d.policyTerm != null ? String(d.policyTerm) : '',
       });
     }
 
@@ -248,54 +255,71 @@ export default function NewCustomerForm() {
     setErrors({});
   }
 
-  function handleFilesSelected(files: FileList | null) {
-    if (!files || files.length === 0) return;
-    const validFiles: File[] = [];
-    const errs: string[] = [];
-    Array.from(files).forEach((file) => {
-      if (file.type !== 'application/pdf') {
-        errs.push(`${file.name} is not a PDF`);
-      } else if (file.size > 10 * 1024 * 1024) {
-        errs.push(`${file.name} exceeds 10 MB limit`);
-      } else {
-        validFiles.push(file);
+  // ── Single-file extraction ────────────────────────────────────────────────
+  async function handleFileSelected(file: File) {
+    setFileError('');
+    setExtractionError('');
+
+    if (file.type !== 'application/pdf') {
+      setFileError('Please select a PDF file');
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      setFileError('File must be under 10 MB');
+      return;
+    }
+
+    setSelectedFileName(file.name);
+    setIsExtracting(true);
+    setWasExtracted(false);
+    setExtractionConfidence(100);
+
+    try {
+      const fd = new FormData();
+      fd.append('pdf', file);
+      const res  = await fetch('/api/extract-policy', { method: 'POST', body: fd });
+      const body = await res.json();
+
+      if (!res.ok) {
+        const msg = body?.message || body?.error || 'Extraction failed — please try again or enter manually';
+        setExtractionError(msg);
+        setSelectedFileName('');
+        // Reset the file input so the agent can re-select the same file
+        if (fileInputRef.current) fileInputRef.current.value = '';
+        return;
       }
-    });
-    setFileErrors(errs);
-    if (validFiles.length > 0) {
-      const ids = pdfQueue.addFiles(validFiles);
-      setSelectedResultId(ids[0]);
+
+      // Success — auto-fill
+      autoFillForm(body.data as Record<string, unknown>);
+    } catch {
+      setExtractionError('Network error — check your connection and try again');
+      setSelectedFileName('');
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    } finally {
+      setIsExtracting(false);
     }
   }
 
+  // ── Mode toggle ───────────────────────────────────────────────────────────
   function handleModeSwitch(mode: 'manual' | 'pdf') {
     if (mode === entryMode) return;
-    const hasData = Object.values(base).some((v) => v !== '') ||
-      wasExtracted;
+    const hasData = Object.values(base).some(v => v !== '') || wasExtracted;
     if (hasData) {
       const msg = mode === 'pdf'
         ? 'Switching to PDF mode will clear your entered data. Continue?'
         : 'Switching to manual mode will clear extracted data. Continue?';
       if (!window.confirm(msg)) return;
     }
-    // Reset form state
-    setBase(emptyBase());
-    setMotor(emptyMotor());
-    setMedical(emptyMedical());
-    setFire(emptyFire());
-    setLife(emptyLife());
-    setErrors({});
-    setWasExtracted(false);
-    setExtractionConfidence(100);
-    setFileErrors([]);
-    if (mode === 'manual') {
-      pdfQueue.clearCompleted();
-      setSelectedResultId(null);
-    }
+    setBase(emptyBase()); setMotor(emptyMotor()); setMedical(emptyMedical());
+    setFire(emptyFire()); setLife(emptyLife()); setErrors({});
+    setWasExtracted(false); setExtractionConfidence(100);
+    setFileError(''); setExtractionError(''); setSelectedFileName('');
+    setIsExtracting(false);
+    if (fileInputRef.current) fileInputRef.current.value = '';
     setEntryMode(mode);
   }
 
-
+  // ── Validation ────────────────────────────────────────────────────────────
   function validate(): Errors {
     const e: Errors = {};
     if (!base.customerName.trim()) e.customerName = 'Required';
@@ -304,50 +328,43 @@ export default function NewCustomerForm() {
     if (!base.policyNumber.trim()) e.policyNumber = 'Required';
     if (!base.premiumAmount || isNaN(Number(base.premiumAmount))) e.premiumAmount = 'Enter a valid amount';
     if (!base.startDate) e.startDate = 'Required';
-    if (!base.endDate) e.endDate = 'Required';
-    if (base.startDate && base.endDate && base.endDate <= base.startDate) e.endDate = 'End date must be after start date';
+    if (!base.endDate)   e.endDate   = 'Required';
+    if (base.startDate && base.endDate && base.endDate <= base.startDate)
+      e.endDate = 'End date must be after start date';
     if (selectedType === 'motor') {
-      if (!motor.vehicleMake?.toString().trim()) e.vehicleMake = 'Required';
-      if (!motor.vehicleModel?.toString().trim()) e.vehicleModel = 'Required';
-      if (!motor.registrationNumber?.toString().trim()) e.registrationNumber = 'Required';
+      if (!motor.vehicleMake?.toString().trim())         e.vehicleMake         = 'Required';
+      if (!motor.vehicleModel?.toString().trim())        e.vehicleModel        = 'Required';
+      if (!motor.registrationNumber?.toString().trim())  e.registrationNumber  = 'Required';
     }
     if (selectedType === 'medical') {
       if (!medical.dateOfBirth) e.dateOfBirth = 'Required';
-      if (!medical.gender) e.gender = 'Required';
+      if (!medical.gender)      e.gender      = 'Required';
     }
     if (selectedType === 'fire') {
-      if (!fire.propertyType) e.propertyType = 'Required';
+      if (!fire.propertyType)          e.propertyType    = 'Required';
       if (!fire.propertyAddress.trim()) e.propertyAddress = 'Required';
     }
     if (selectedType === 'life') {
-      if (!life.dateOfBirth) e.dateOfBirth = 'Required';
-      if (!life.nomineeName.trim()) e.nomineeName = 'Required';
-      if (!life.lifePolicyType) e.lifePolicyType = 'Required';
+      if (!life.dateOfBirth)           e.dateOfBirth   = 'Required';
+      if (!life.nomineeName.trim())    e.nomineeName   = 'Required';
+      if (!life.lifePolicyType)        e.lifePolicyType = 'Required';
     }
     return e;
   }
 
-
-
+  // ── Submit ────────────────────────────────────────────────────────────────
   async function handleSubmit() {
     const e = validate();
     if (Object.keys(e).length > 0) { setErrors(e); return; }
-    setErrors({});
-    setSubmitting(true);
-    setSubmitError('');
+    setErrors({}); setSubmitting(true); setSubmitError('');
 
-    // Build type-specific details object
     let details: Record<string, unknown> = {};
-    if (selectedType === 'motor')   details = { ...motor };
+    if (selectedType === 'motor')        details = { ...motor };
     else if (selectedType === 'medical') details = { ...medical };
     else if (selectedType === 'fire')    details = { ...fire };
     else if (selectedType === 'life')    details = { ...life };
 
-    const payload: Record<string, unknown> = {
-      ...base,
-      type: selectedType,
-      details,
-    };
+    const payload: Record<string, unknown> = { ...base, type: selectedType, details };
 
     try {
       if (editId) {
@@ -355,26 +372,6 @@ export default function NewCustomerForm() {
         router.push(`/dashboard/customers/${editId}`);
       } else {
         const created = await saveCustomer(payload);
-        // Clean up the used queue item and prompt if more are waiting
-        if (selectedResultId) {
-          pdfQueue.removeItem(selectedResultId);
-          setSelectedResultId(null);
-          const remaining = pdfQueue.getQueue().filter(
-            (i) => i.status === 'done' || i.status === 'waiting' || i.status === 'processing' || i.status === 'retrying'
-          );
-          if (remaining.length > 0) {
-            const next = remaining.find((i) => i.status === 'done');
-            const msg = next
-              ? `Customer saved! Load next PDF from queue?`
-              : `Customer saved! ${remaining.length} PDF(s) still processing — come back to use them.`;
-            if (next && window.confirm(msg)) {
-              setSelectedResultId(next.id);
-              if (next.result) autoFillForm(next.result);
-              setSubmitting(false);
-              return;
-            }
-          }
-        }
         router.push(`/dashboard/customers/${created._id}`);
       }
     } catch (err: unknown) {
@@ -384,10 +381,11 @@ export default function NewCustomerForm() {
     }
   }
 
-  const upBase = (k: keyof typeof base) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-    setBase(b => ({ ...b, [k]: e.target.value }));
-    setErrors(err => { const x = { ...err }; delete x[k]; return x; });
-  };
+  const upBase = (k: keyof typeof base) =>
+    (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+      setBase(b => ({ ...b, [k]: e.target.value }));
+      setErrors(err => { const x = { ...err }; delete x[k]; return x; });
+    };
 
   function syncMembers(count: string) {
     const n = Math.max(1, parseInt(count) || 1);
@@ -399,7 +397,8 @@ export default function NewCustomerForm() {
     });
   }
 
-  // ── Step 1 ──────────────────────────────────────────────────────────────────
+  // ─────────────────────────────────────────────────────────────────────────
+  // ── Step 1 — Select type ─────────────────────────────────────────────────
   if (step === 1) {
     return (
       <div>
@@ -439,7 +438,8 @@ export default function NewCustomerForm() {
     );
   }
 
-  // ── Step 2 ──────────────────────────────────────────────────────────────────
+  // ─────────────────────────────────────────────────────────────────────────
+  // ── Step 2 — Fill details ────────────────────────────────────────────────
   return (
     <div>
       <div className="page-header">
@@ -457,7 +457,7 @@ export default function NewCustomerForm() {
       <div className="card">
         <div className="card-body">
 
-          {/* ── Mode Toggle ─────────────────────────────────────────── */}
+          {/* ── Mode toggle ─────────────────────────────────────────── */}
           {!editId && (
             <div style={{ display: 'flex', gap: 0, marginBottom: 24, borderRadius: 'var(--radius)', border: '1.5px solid var(--border)', overflow: 'hidden' }}>
               <button
@@ -477,10 +477,11 @@ export default function NewCustomerForm() {
               <button
                 id="mode-pdf"
                 onClick={() => handleModeSwitch('pdf')}
+                disabled={isExtracting}
                 style={{
                   flex: 1, padding: '12px 16px', fontSize: 13.5, fontWeight: 600,
                   display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-                  border: 'none', cursor: 'pointer', transition: 'all .15s ease',
+                  border: 'none', cursor: isExtracting ? 'not-allowed' : 'pointer', transition: 'all .15s ease',
                   background: entryMode === 'pdf' ? 'var(--primary)' : 'var(--surface)',
                   color: entryMode === 'pdf' ? '#fff' : 'var(--text-muted)',
                 }}
@@ -490,149 +491,123 @@ export default function NewCustomerForm() {
             </div>
           )}
 
-          {/* ── PDF Drop Zone ────────────────────────────────────────── */}
+          {/* ── Single-file PDF upload zone ──────────────────────── */}
           {entryMode === 'pdf' && (
             <div style={{ marginBottom: 20 }}>
-              <div
-                id="pdf-drop-zone"
-                onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
-                onDragLeave={() => setIsDragging(false)}
-                onDrop={(e) => {
-                  e.preventDefault();
-                  setIsDragging(false);
-                  handleFilesSelected(e.dataTransfer.files);
-                }}
-                onClick={() => fileInputRef.current?.click()}
-                style={{
-                  border: `2px dashed ${isDragging ? 'var(--primary)' : 'var(--border)'}`,
-                  borderRadius: 'var(--radius-lg)',
-                  padding: '32px 24px',
-                  textAlign: 'center',
-                  cursor: 'pointer',
-                  background: isDragging ? 'var(--primary-light)' : 'var(--bg)',
-                  transition: 'all .15s ease',
-                  marginBottom: 12,
-                }}
-              >
-                <Upload size={28} style={{ color: 'var(--primary)', marginBottom: 10, display: 'block', margin: '0 auto 10px' }} />
-                <div style={{ fontWeight: 600, fontSize: 14, color: 'var(--text)', marginBottom: 4 }}>
-                  Drop PDF files here or click to browse
-                </div>
-                <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-                  Supports multiple files &nbsp;•&nbsp; Max 10 MB each
-                </div>
-              </div>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".pdf,application/pdf"
-                multiple
-                style={{ display: 'none' }}
-                onChange={(e) => handleFilesSelected(e.target.files)}
-              />
-              {fileErrors.length > 0 && (
-                <div style={{ background: 'var(--status-expired-bg)', border: '1px solid #f7b8b8', borderRadius: 'var(--radius-sm)', padding: '10px 14px', fontSize: 12.5, color: 'var(--status-expired)', marginBottom: 8 }}>
-                  {fileErrors.map((err, i) => <div key={i}>⚠ {err}</div>)}
+
+              {/* Drop zone — hidden once extraction is in progress */}
+              {!isExtracting && !wasExtracted && (
+                <>
+                  <div
+                    id="pdf-drop-zone"
+                    onDragOver={e => { e.preventDefault(); setIsDragging(true); }}
+                    onDragLeave={() => setIsDragging(false)}
+                    onDrop={e => {
+                      e.preventDefault(); setIsDragging(false);
+                      const file = e.dataTransfer.files?.[0];
+                      if (file) handleFileSelected(file);
+                    }}
+                    onClick={() => { if (!isExtracting) fileInputRef.current?.click(); }}
+                    style={{
+                      border: `2px dashed ${isDragging ? 'var(--primary)' : 'var(--border)'}`,
+                      borderRadius: 'var(--radius-lg)',
+                      padding: '36px 24px',
+                      textAlign: 'center',
+                      cursor: 'pointer',
+                      background: isDragging ? 'var(--primary-light)' : 'var(--bg)',
+                      transition: 'all .15s ease',
+                      marginBottom: 10,
+                    }}
+                  >
+                    <Upload size={30} style={{ color: 'var(--primary)', display: 'block', margin: '0 auto 12px' }} />
+                    <div style={{ fontWeight: 600, fontSize: 14, color: 'var(--text)', marginBottom: 4 }}>
+                      Drop a PDF here or click to browse
+                    </div>
+                    <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                      One file at a time &nbsp;•&nbsp; Max 10 MB
+                    </div>
+                  </div>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".pdf,application/pdf"
+                    style={{ display: 'none' }}
+                    onChange={e => {
+                      const file = e.target.files?.[0];
+                      if (file) handleFileSelected(file);
+                    }}
+                  />
+                </>
+              )}
+
+              {/* Validation error (wrong file type / too large) */}
+              {fileError && (
+                <div style={{
+                  background: 'var(--status-expired-bg)', border: '1px solid #f7b8b8',
+                  borderRadius: 'var(--radius-sm)', padding: '10px 14px',
+                  fontSize: 12.5, color: 'var(--status-expired)', marginBottom: 10,
+                  display: 'flex', alignItems: 'center', gap: 8,
+                }}>
+                  <AlertCircle size={14} /> {fileError}
                 </div>
               )}
 
-              {/* ── Queue List ─────────────────────────────────────── */}
-              {queueItems.length > 0 && (
-                <div style={{ border: '1px solid var(--border)', borderRadius: 'var(--radius)', overflow: 'hidden' }}>
-                  {/* Estimated time */}
-                  {(() => {
-                    const waiting = queueItems.filter(i => i.status === 'waiting' || i.status === 'retrying');
-                    const done    = queueItems.filter(i => i.status === 'done').length;
-                    const total   = queueItems.length;
-                    return (
-                      <div style={{ padding: '10px 14px', background: 'var(--bg)', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
-                        <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-                          Processed: <strong>{done}</strong> of <strong>{total}</strong>
-                          {waiting.length > 0 && (
-                            <> &nbsp;•&nbsp; ⏱ {estimateQueueTime(waiting.length)} remaining</>
-                          )}
-                        </span>
-                        <button className="btn btn-ghost btn-sm" onClick={() => pdfQueue.clearCompleted()}>
-                          Clear Completed
-                        </button>
+              {/* Extraction in progress */}
+              {isExtracting && (
+                <div style={{
+                  border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)',
+                  padding: '28px 24px', textAlign: 'center', background: 'var(--surface)',
+                  marginBottom: 10,
+                }}>
+                  <Loader2 size={32} style={{
+                    color: 'var(--primary)', display: 'block', margin: '0 auto 14px',
+                    animation: 'spin 1s linear infinite',
+                  }} />
+                  <div style={{ fontWeight: 600, fontSize: 14, color: 'var(--text)', marginBottom: 4 }}>
+                    Extracting policy details…
+                  </div>
+                  <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                    {selectedFileName}
+                  </div>
+                  <div style={{ fontSize: 11.5, color: 'var(--text-muted)', marginTop: 6 }}>
+                    Please wait — this usually takes 3–6 seconds
+                  </div>
+                </div>
+              )}
+
+              {/* Extraction failure — inline error + reset */}
+              {extractionError && !isExtracting && (
+                <div style={{
+                  background: 'var(--status-expired-bg)', border: '1px solid #f7b8b8',
+                  borderRadius: 'var(--radius)', padding: '14px 16px', marginBottom: 10,
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: 10 }}>
+                    <AlertCircle size={16} style={{ color: 'var(--status-expired)', flexShrink: 0, marginTop: 1 }} />
+                    <div>
+                      <div style={{ fontWeight: 600, fontSize: 13, color: 'var(--status-expired)', marginBottom: 2 }}>
+                        Extraction failed
                       </div>
-                    );
-                  })()}
-
-                  {/* Progress bar */}
-                  {(() => {
-                    const done  = queueItems.filter(i => i.status === 'done' || i.status === 'error').length;
-                    const total = queueItems.length;
-                    const pct   = total > 0 ? Math.round((done / total) * 100) : 0;
-                    return (
-                      <div style={{ height: 4, background: 'var(--border)' }}>
-                        <div style={{ height: '100%', width: `${pct}%`, background: 'var(--primary)', transition: 'width .4s ease' }} />
+                      <div style={{ fontSize: 12.5, color: 'var(--status-expired)' }}>
+                        {extractionError}
                       </div>
-                    );
-                  })()}
-
-                  {/* Items */}
-                  {queueItems.map((item) => (
-                    <div key={item.id} style={{
-                      display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px',
-                      borderBottom: '1px solid var(--border-light)',
-                      background: item.id === selectedResultId ? 'var(--primary-light)' : 'var(--surface)',
-                    }}>
-                      <FileText size={16} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                          {item.fileName}
-                        </div>
-                        <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{formatFileSize(item.fileSize)}</div>
-                      </div>
-
-                      {/* Status indicator */}
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, flexShrink: 0 }}>
-                        {item.status === 'waiting'    && <span style={{ color: 'var(--text-muted)' }}>⬤ Waiting…</span>}
-                        {item.status === 'processing' && <><Loader2 size={13} style={{ color: 'var(--primary)', animation: 'spin 1s linear infinite' }} /> <span style={{ color: 'var(--primary)' }}>Extracting…</span></>}
-                        {item.status === 'retrying'   && <span style={{ color: 'var(--status-expiring)' }}>⟳ Retrying ({item.retries}/3)…</span>}
-                        {item.status === 'done'       && <><CheckCircle2 size={14} style={{ color: 'var(--status-active)' }} /><span style={{ color: 'var(--status-active)' }}>Done</span></>}
-                        {item.status === 'error'      && (
-                          <span style={{ color: 'var(--status-expired)', display: 'flex', alignItems: 'center', gap: 4 }}>
-                            <AlertCircle size={13} /> {item.error}
-                            <button className="btn btn-ghost btn-sm" style={{ fontSize: 11, padding: '2px 8px', marginLeft: 4 }}
-                              onClick={() => pdfQueue.retryItem(item.id)}>Retry</button>
-                          </span>
-                        )}
-                      </div>
-
-                      {/* Use button */}
-                      <button
-                        className="btn btn-outline btn-sm"
-                        disabled={item.status !== 'done'}
-                        onClick={() => {
-                          setSelectedResultId(item.id);
-                          if (item.result) autoFillForm(item.result);
-                        }}
-                      >
-                        Use
-                      </button>
-
-                      {/* Remove button */}
-                      <button
-                        className="btn btn-ghost btn-sm"
-                        disabled={item.status === 'processing'}
-                        onClick={() => {
-                          pdfQueue.removeItem(item.id);
-                          if (item.id === selectedResultId) setSelectedResultId(null);
-                        }}
-                        style={{ padding: '4px 8px' }}
-                      >
-                        <X size={13} />
-                      </button>
                     </div>
-                  ))}
+                  </div>
+                  <button
+                    className="btn btn-ghost btn-sm"
+                    onClick={() => {
+                      setExtractionError(''); setSelectedFileName('');
+                      if (fileInputRef.current) fileInputRef.current.value = '';
+                    }}
+                    style={{ fontSize: 12 }}
+                  >
+                    Try another file
+                  </button>
                 </div>
               )}
             </div>
           )}
 
-          {/* ── Extraction Banner ──────────────────────────────────── */}
+          {/* ── Confidence / success banner ──────────────────────────── */}
           {wasExtracted && (
             <div style={{
               borderRadius: 'var(--radius)',
@@ -643,9 +618,18 @@ export default function NewCustomerForm() {
               gap: 10,
               fontSize: 13.5,
               fontWeight: 500,
-              background: extractionConfidence >= 80 ? '#e4f5ec' : extractionConfidence >= 60 ? 'var(--status-expiring-bg)' : 'var(--status-expiring-bg)',
-              border: `1px solid ${extractionConfidence >= 80 ? '#a7e3be' : extractionConfidence >= 60 ? 'var(--fire-border)' : '#f7b8b8'}`,
-              color: extractionConfidence >= 80 ? 'var(--status-active)' : 'var(--status-expiring)',
+              background:
+                extractionConfidence >= 80 ? '#e4f5ec'
+                : extractionConfidence >= 60 ? 'var(--status-expiring-bg)'
+                : 'var(--status-expired-bg)',
+              border: `1px solid ${
+                extractionConfidence >= 80 ? '#a7e3be'
+                : extractionConfidence >= 60 ? 'var(--fire-border)'
+                : '#f7b8b8'}`,
+              color:
+                extractionConfidence >= 80 ? 'var(--status-active)'
+                : extractionConfidence >= 60 ? 'var(--status-expiring)'
+                : 'var(--status-expired)',
             }}>
               {extractionConfidence >= 80
                 ? <CheckCircle2 size={16} />
@@ -654,12 +638,14 @@ export default function NewCustomerForm() {
                   : <AlertCircle size={16} />}
               {extractionConfidence >= 80 && 'Details extracted from PDF — review before saving'}
               {extractionConfidence >= 60 && extractionConfidence < 80 && 'Low confidence extraction — verify all fields carefully'}
-              {extractionConfidence < 60  && 'Very low confidence — please verify everything. Policy type may be incorrect.'}
-              <span style={{ marginLeft: 'auto', fontSize: 11, opacity: 0.7 }}>Confidence: {extractionConfidence}%</span>
+              {extractionConfidence < 60 && 'Very low confidence — please verify everything. Policy type may be incorrect.'}
+              <span style={{ marginLeft: 'auto', fontSize: 11, opacity: 0.7 }}>
+                Confidence: {extractionConfidence}%
+              </span>
             </div>
           )}
 
-          {/* Customer Info */}
+          {/* ── Customer Information ─────────────────────────────────── */}
           <div className="form-section">
             <div className="form-section-title">👤 Customer Information</div>
             <div className="form-grid">
@@ -682,7 +668,7 @@ export default function NewCustomerForm() {
             </div>
           </div>
 
-          {/* Motor */}
+          {/* ── Motor ──────────────────────────────────────────────────── */}
           {selectedType === 'motor' && (
             <div className="form-section">
               <div className="form-section-title" style={{ color: 'var(--motor)' }}>🚗 Vehicle Details</div>
@@ -730,7 +716,7 @@ export default function NewCustomerForm() {
             </div>
           )}
 
-          {/* Medical */}
+          {/* ── Medical ────────────────────────────────────────────────── */}
           {selectedType === 'medical' && (
             <div className="form-section">
               <div className="form-section-title" style={{ color: 'var(--medical)' }}>🏥 Health Details</div>
@@ -778,7 +764,7 @@ export default function NewCustomerForm() {
                 {medical.members.map((mem, i) => (
                   <div key={i} className="member-row" style={{ gridColumn: '1 / -1' }}>
                     <span className="member-row-num">#{i + 1}</span>
-                    <input className="form-control" placeholder={`Member ${i+1} name`} value={mem.name}
+                    <input className="form-control" placeholder={`Member ${i + 1} name`} value={mem.name}
                       onChange={e => { const updated = [...medical.members]; updated[i] = { ...updated[i], name: e.target.value }; setMedical(x => ({ ...x, members: updated })); }} />
                     <input className="form-control" placeholder="Age" maxLength={3} style={{ maxWidth: 80 }} value={mem.age}
                       onChange={e => { const updated = [...medical.members]; updated[i] = { ...updated[i], age: e.target.value }; setMedical(x => ({ ...x, members: updated })); }} />
@@ -788,7 +774,7 @@ export default function NewCustomerForm() {
             </div>
           )}
 
-          {/* Fire */}
+          {/* ── Fire ───────────────────────────────────────────────────── */}
           {selectedType === 'fire' && (
             <div className="form-section">
               <div className="form-section-title" style={{ color: 'var(--fire)' }}>🏠 Property Details</div>
@@ -829,7 +815,7 @@ export default function NewCustomerForm() {
             </div>
           )}
 
-          {/* Life */}
+          {/* ── Life ───────────────────────────────────────────────────── */}
           {selectedType === 'life' && (
             <div className="form-section">
               <div className="form-section-title" style={{ color: 'var(--life)' }}>💼 Life Policy Details</div>
@@ -899,7 +885,7 @@ export default function NewCustomerForm() {
             </div>
           )}
 
-          {/* Policy Info */}
+          {/* ── Policy Information ──────────────────────────────────────── */}
           <div className="form-section">
             <div className="form-section-title">📋 Policy Information</div>
             <div className="form-grid">
@@ -926,14 +912,14 @@ export default function NewCustomerForm() {
             </div>
           </div>
 
-          {/* Actions */}
+          {/* ── Actions ────────────────────────────────────────────────── */}
           <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end', borderTop: '1px solid var(--border)', paddingTop: 20 }}>
             {!editId && (
               <button className="btn btn-ghost" onClick={() => setStep(1)}>
                 <ChevronLeft size={15} /> Back
               </button>
             )}
-            <button className="btn btn-ghost" onClick={() => router.push('/dashboard/customers')} disabled={submitting}>
+            <button className="btn btn-ghost" onClick={() => router.push('/dashboard/customers')} disabled={submitting || isExtracting}>
               <X size={15} /> Cancel
             </button>
             {submitError && (
@@ -941,8 +927,13 @@ export default function NewCustomerForm() {
                 {submitError}
               </span>
             )}
-            <button className="btn btn-primary" onClick={handleSubmit} id="save-customer" disabled={submitting}>
-              <Save size={15} /> {submitting ? (editId ? 'Saving…' : 'Saving…') : (editId ? 'Save Changes' : 'Save Customer')}
+            <button
+              className="btn btn-primary"
+              onClick={handleSubmit}
+              id="save-customer"
+              disabled={submitting || isExtracting}
+            >
+              <Save size={15} /> {submitting ? 'Saving…' : editId ? 'Save Changes' : 'Save Customer'}
             </button>
           </div>
 
