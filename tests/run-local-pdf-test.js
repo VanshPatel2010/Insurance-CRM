@@ -13,6 +13,8 @@
 
 import { TEST_AGENTS, ResultStore, sleep } from './config.js';
 import { generateReport } from './reporter.js';
+import fs from 'fs';
+import path from 'path';
 
 const BASE = 'http://localhost:3000';
 
@@ -36,54 +38,8 @@ function extractCookies(headers) {
 // ── Test PDF generator (same as s7-concurrent-pdf.js) ────────────────────────
 
 function makeTestPdf() {
-  const contentText =
-    'BT /F1 11 Tf\n' +
-    '50 740 Td (MOTOR INSURANCE POLICY CERTIFICATE) Tj\n' +
-    '0 -22 Td (Policy Number: MOT-2024-TEST-001) Tj\n' +
-    '0 -22 Td (Insured Name: Rahul Sharma) Tj\n' +
-    '0 -22 Td (Phone: 9876543210) Tj\n' +
-    '0 -22 Td (Vehicle: Maruti Suzuki Swift Dezire 2022) Tj\n' +
-    '0 -22 Td (Registration: MH12AB9999) Tj\n' +
-    '0 -22 Td (Fuel Type: Petrol  Engine: 1200 CC) Tj\n' +
-    '0 -22 Td (IDV: Rs. 450000   NCB: 20%) Tj\n' +
-    '0 -22 Td (Sum Insured: Rs. 450000) Tj\n' +
-    '0 -22 Td (Premium: Rs. 12500) Tj\n' +
-    '0 -22 Td (Start Date: 2024-04-01   End Date: 2025-03-31) Tj\n' +
-    '0 -22 Td (Add-ons: Zero Depreciation, Roadside Assistance) Tj\n' +
-    'ET\n';
-
-  const obj1 = '1 0 obj\n<</Type /Catalog /Pages 2 0 R>>\nendobj\n';
-  const obj2 = '2 0 obj\n<</Type /Pages /Kids[3 0 R] /Count 1>>\nendobj\n';
-  const obj3 =
-    '3 0 obj\n' +
-    '<</Type /Page /Parent 2 0 R /MediaBox[0 0 612 792]\n' +
-    '/Contents 4 0 R /Resources<</Font<</F1 5 0 R>>>>>>\n' +
-    'endobj\n';
-  const obj4 =
-    `4 0 obj\n<</Length ${contentText.length}>>\nstream\n${contentText}endstream\nendobj\n`;
-  const obj5 =
-    '5 0 obj\n<</Type /Font /Subtype /Type1 /BaseFont /Helvetica>>\nendobj\n';
-
-  const header = '%PDF-1.4\n';
-  const off1 = header.length;
-  const off2 = off1 + obj1.length;
-  const off3 = off2 + obj2.length;
-  const off4 = off3 + obj3.length;
-  const off5 = off4 + obj4.length;
-
-  const body = header + obj1 + obj2 + obj3 + obj4 + obj5;
-  const xrefStart = body.length;
-  const xref =
-    'xref\n0 6\n' +
-    '0000000000 65535 f\r\n' +
-    String(off1).padStart(10, '0') + ' 00000 n\r\n' +
-    String(off2).padStart(10, '0') + ' 00000 n\r\n' +
-    String(off3).padStart(10, '0') + ' 00000 n\r\n' +
-    String(off4).padStart(10, '0') + ' 00000 n\r\n' +
-    String(off5).padStart(10, '0') + ' 00000 n\r\n';
-
-  const trailer = `trailer\n<</Size 6 /Root 1 0 R>>\nstartxref\n${xrefStart}\n%%EOF\n`;
-  return Buffer.from(body + xref + trailer, 'utf8');
+  const pdfPath = path.join(process.cwd(), 'tests', 'Tata AIG Motor Policy Schedule_undefined_6206090456-00.pdf');
+  return fs.readFileSync(pdfPath);
 }
 
 // ── S1: Login 20 agents against localhost ─────────────────────────────────────

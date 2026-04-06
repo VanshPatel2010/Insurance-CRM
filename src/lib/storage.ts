@@ -56,7 +56,12 @@ export interface DashboardStats {
  */
 export function flattenCustomer(doc: CustomerDoc): CustomerDoc {
   const { details, ...rest } = doc;
-  return { ...details, ...rest } as CustomerDoc;
+  // Handle legacy double-nested details (details.details.vehicleMake etc.)
+  // caused by a previous bug where the form's `details` key wasn't destructured
+  const innerDetails = (details && typeof details === 'object' && 'details' in details)
+    ? { ...details, ...(details as Record<string, unknown>).details as Record<string, unknown> }
+    : details;
+  return { ...innerDetails, ...rest } as CustomerDoc;
 }
 
 // ── API Wrappers ───────────────────────────────────────────────────────────────

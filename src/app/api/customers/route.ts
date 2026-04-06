@@ -101,8 +101,11 @@ export async function POST(req: NextRequest) {
   }
 
   // Extract type-specific fields into details
+  // The form sends { ...base, type, details: { vehicleMake, ... } }
+  // We need to use `details` directly, not wrap it again inside another `details`
   const { type: _type, customerName: _cn, phone: _ph, email, address, policyNumber: _pn,
-          premiumAmount: _pa, sumInsured, startDate: _sd, endDate: _ed, ...rest } = body;
+          premiumAmount: _pa, sumInsured, startDate: _sd, endDate: _ed,
+          details: submittedDetails, ...rest } = body;
 
   const customer = await Customer.create({
     agentId: session.user.id,
@@ -116,7 +119,7 @@ export async function POST(req: NextRequest) {
     sumInsured:    sumInsured    ?? '',
     startDate,
     endDate,
-    details: rest,
+    details: { ...(submittedDetails ?? {}), ...rest },
   });
 
   return NextResponse.json(customer, { status: 201 });

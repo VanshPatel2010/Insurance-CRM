@@ -55,6 +55,7 @@ export async function PUT(req: NextRequest, { params }: Params) {
     /* eslint-disable @typescript-eslint/no-unused-vars */
     _id: _i, agentId: _a, createdAt: _c,
     /* eslint-enable */
+    details: submittedDetails,
     ...rest
   } = body;
 
@@ -84,7 +85,7 @@ export async function PUT(req: NextRequest, { params }: Params) {
     sumInsured:    sumInsured    ?? customer.sumInsured,
     ...(startDate     && { startDate }),
     ...(endDate       && { endDate }),
-    details: { ...customer.details, ...rest },
+    details: { ...customer.details, ...(submittedDetails ?? {}), ...rest },
     updatedAt: new Date(),
   });
 
