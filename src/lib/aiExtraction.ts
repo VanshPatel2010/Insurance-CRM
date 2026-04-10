@@ -11,8 +11,6 @@
  * Step 3b: Scanned PDF     → extract image from PDF, send to Groq Llama 4 Scout
  */
 
-import * as pdfParse from 'pdf-parse';
-
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export type ExtractionSuccess = {
@@ -176,33 +174,68 @@ function parseJsonResponse(raw: string): unknown {
 }
 
 // ─── Step 1: Extract text from PDF using pdf-parse ─────────────────────────
+import { resolve } from 'path';
+
+// ... (Keep your existing Types and EXTRACTION_PROMPT)
+
+// ─── Step 1: Extract text from PDF using pdfjs-dist (Vercel-Safe) ───────────
+
 /**
- * Extracts raw text content from a PDF buffer, limited to the first 5 pages.
+ * Extracts text from the first 5 pages using pdfjs-dist directly.
+ * This avoids the 'pdf-parse' import error and the Buffer() deprecation.
  */
 async function extractTextFromPdf(pdfBuffer: Buffer): Promise<string> {
   try {
-    // The 'max' property stops the parser after N pages
-    const options = {
-      max: 5, 
-    };
-
-    const data = await (pdfParse as any).default(pdfBuffer, options);
+    const pdfModule = await import('pdfjs-dist/legacy/build/pdf.mjs');
+    const pdfjs = pdfModule as any;
     
-    if (!data.text) return '';
+    // Configure worker for Vercel environment
+    pdfjs.GlobalWorkerOptions.workerSrc = `file://${resolve(
+      'node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs'
+    )}`;
 
-    // Standardize text: Remove "invisible" control characters and excessive whitespace
-    // This prevents Llama models from getting "stuck" in document completion mode.
-    const cleanText = data.text
+    const data = new Uint8Array(pdfBuffer);
+    const loadingTask = pdfjs.getDocument({ data });
+    const pdfDoc = await loadingTask.promise;
+
+    // LIMIT TO 1ST 5 PAGES
+    const numPages = Math.min(pdfDoc.numPages, 5);
+    let fullText = '';
+
+    for (let i = 1; i <= numPages; i++) {
+      const page = await pdfDoc.getPage(i);
+      const textContent = await page.getTextContent();
+      // Join items with spaces to maintain word separation
+      const pageText = textContent.items.map((item: any) => item.str).join(' ');
+      fullText += `[Page ${i}] ${pageText}\n`;
+    }
+
+    await pdfDoc.destroy();
+
+    // ─── MEASURABLE PRUNING LOGIC ───
+    
+    return fullText
+      // 1. Remove control characters and ligatures
       .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '')
+      .replace(/ﬀ/g, 'ff').replace(/ﬁ/g, 'fi').replace(/ﬂ/g, 'fl')
+      // 2. Remove repetitive decorative junk (e.g. ---------- or *********)
+      .replace(/[-*_]{3,}/g, ' ')
+      // 3. Remove known "token-heavy" Indian legal footers (saves ~500 chars)
+      .replace(/This is a computer generated document and does not require signature.*/gi, '')
+      .replace(/For any grievance, please contact the insurance ombudsman.*/gi, '')
+      // 4. Collapse all whitespace into single spaces (THE BIGGEST SAVING)
       .replace(/\s+/g, ' ')
+      // 5. Slice at 12,000 chars (Max "safety" limit for high-density policy data)
+      .slice(0, 12000)
       .trim();
-
-    return cleanText;
+      
   } catch (err) {
-    console.warn('[aiExtraction] pdf-parse error:', (err as Error).message);
+    console.error('[aiExtraction] pdfjs text extraction failed:', err);
     return '';
   }
 }
+
+// ... (Rest of your groqExtractText and main function remains the same)
 
 // ─── Groq API Implementations ─────────────────────────────────────────────────
 
