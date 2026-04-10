@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { saveCustomer, updateCustomer, getCustomer, flattenCustomer } from '@/lib/storage';
+import { COUNTRY_CALLING_CODES, DEFAULT_COUNTRY_ISO2 } from '@/lib/countryCallingCodes';
 import { calculateAge } from '@/lib/utils';
 import {
   Policy, PolicyType,
@@ -44,7 +45,7 @@ function Field({
 
 // ── Empty state factories ─────────────────────────────────────────────────────
 const emptyBase = () => ({
-  customerName: '', phone: '', email: '', address: '',
+  customerName: '', phoneCountryIso2: DEFAULT_COUNTRY_ISO2, phone: '', email: '', address: '',
   policyNumber: '', sumInsured: '', premiumAmount: '',
   startDate: '', endDate: '',
 });
@@ -71,6 +72,35 @@ const emptyLife = () => ({
   sumAssured: '', premiumFrequency: '' as '' | 'Monthly' | 'Quarterly' | 'Annual',
   maturityDate: '', policyTerm: '',
 });
+
+function parseStoredPhone(value: unknown) {
+  const cleanedPhone = String(value ?? '').replace(/\D/g, '');
+
+  if (!cleanedPhone) {
+    return { phoneCountryIso2: DEFAULT_COUNTRY_ISO2, phone: '' };
+  }
+
+  if (cleanedPhone.length <= 10) {
+    return { phoneCountryIso2: DEFAULT_COUNTRY_ISO2, phone: cleanedPhone };
+  }
+
+  const matchedCountry = [...COUNTRY_CALLING_CODES]
+    .sort((a, b) => b.dialCode.length - a.dialCode.length)
+    .find(
+      (country) =>
+        cleanedPhone.startsWith(country.dialCode) &&
+        cleanedPhone.length > country.dialCode.length
+    );
+
+  if (!matchedCountry) {
+    return { phoneCountryIso2: DEFAULT_COUNTRY_ISO2, phone: cleanedPhone };
+  }
+
+  return {
+    phoneCountryIso2: matchedCountry.iso2,
+    phone: cleanedPhone.slice(matchedCountry.dialCode.length),
+  };
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 export default function NewCustomerForm() {
@@ -109,11 +139,13 @@ export default function NewCustomerForm() {
     getCustomer(editId)
       .then(doc => {
         const p = flattenCustomer(doc);
+        const parsedPhone = parseStoredPhone(p.phone);
         setSelectedType(p.type as PolicyType);
         setStep(2);
         setBase({
           customerName:  String(p.customerName  ?? ''),
-          phone:         String(p.phone         ?? ''),
+          phoneCountryIso2: parsedPhone.phoneCountryIso2,
+          phone:         parsedPhone.phone,
           email:         String(p.email         ?? ''),
           address:       String(p.address       ?? ''),
           policyNumber:  String(p.policyNumber  ?? ''),
@@ -174,6 +206,7 @@ export default function NewCustomerForm() {
     if (!data) return;
     const d    = (data.details ?? {}) as Record<string, unknown>;
     const type = data.type as PolicyType | undefined;
+    const parsedPhone = parseStoredPhone(data.phone);
 
     if (type && ['motor', 'medical', 'fire', 'life'].includes(type)) {
       setSelectedType(type);
@@ -181,7 +214,8 @@ export default function NewCustomerForm() {
 
     setBase({
       customerName:  String(data.customerName  ?? ''),
-      phone:         String(data.phone          ?? ''),
+      phoneCountryIso2: parsedPhone.phoneCountryIso2,
+      phone:         parsedPhone.phone,
       email:         String(data.email          ?? ''),
       address:       String(data.address        ?? ''),
       policyNumber:  String(data.policyNumber   ?? ''),
@@ -303,7 +337,10 @@ export default function NewCustomerForm() {
   // ── Mode toggle ───────────────────────────────────────────────────────────
   function handleModeSwitch(mode: 'manual' | 'pdf') {
     if (mode === entryMode) return;
-    const hasData = Object.values(base).some(v => v !== '') || wasExtracted;
+    const hasData = Object.entries(base).some(([key, value]) => {
+      if (key === 'phoneCountryIso2') return false;
+      return value !== '';
+    }) || wasExtracted;
     if (hasData) {
       const msg = mode === 'pdf'
         ? 'Switching to PDF mode will clear your entered data. Continue?'
@@ -323,7 +360,8 @@ export default function NewCustomerForm() {
   function validate(): Errors {
     const e: Errors = {};
     if (!base.customerName.trim()) e.customerName = 'Required';
-    if (!base.phone.match(/^\d{10}$/)) e.phone = 'Enter a valid 10-digit phone number';
+    if (!base.phone.trim()) e.phone = 'Required';
+    else if (!/^\d{6,15}$/.test(base.phone)) e.phone = 'Enter a valid contact number';
     if (base.email && !base.email.includes('@')) e.email = 'Invalid email';
     if (!base.policyNumber.trim()) e.policyNumber = 'Required';
     if (!base.premiumAmount || isNaN(Number(base.premiumAmount))) e.premiumAmount = 'Enter a valid amount';
@@ -364,7 +402,16 @@ export default function NewCustomerForm() {
     else if (selectedType === 'fire')    details = { ...fire };
     else if (selectedType === 'life')    details = { ...life };
 
-    const payload: Record<string, unknown> = { ...base, type: selectedType, details };
+    const selectedCountry =
+      COUNTRY_CALLING_CODES.find(country => country.iso2 === base.phoneCountryIso2)
+      ?? COUNTRY_CALLING_CODES[0];
+    const payload: Record<string, unknown> = {
+      ...base,
+      phone: `${selectedCountry.dialCode}${base.phone}`,
+      type: selectedType,
+      details,
+    };
+    delete payload.phoneCountryIso2;
 
     try {
       if (editId) {
@@ -383,7 +430,8 @@ export default function NewCustomerForm() {
 
   const upBase = (k: keyof typeof base) =>
     (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-      setBase(b => ({ ...b, [k]: e.target.value }));
+      const nextValue = k === 'phone' ? e.target.value.replace(/\D/g, '') : e.target.value;
+      setBase(b => ({ ...b, [k]: nextValue }));
       setErrors(err => { const x = { ...err }; delete x[k]; return x; });
     };
 
@@ -654,8 +702,28 @@ export default function NewCustomerForm() {
                   value={base.customerName} onChange={upBase('customerName')} placeholder="Full name" />
               </Field>
               <Field label="Phone Number" name="phone" required error={errors.phone}>
-                <input id="phone" className={`form-control ${errors.phone ? 'error' : ''}`}
-                  value={base.phone} onChange={upBase('phone')} placeholder="10-digit mobile" maxLength={10} />
+                <div style={{ display: 'grid', gridTemplateColumns: 'minmax(130px, 180px) minmax(0, 1fr)', gap: 10 }}>
+                  <select
+                    id="phoneCountryIso2"
+                    className="form-control"
+                    value={base.phoneCountryIso2}
+                    onChange={upBase('phoneCountryIso2')}
+                  >
+                    {COUNTRY_CALLING_CODES.map(country => (
+                      <option key={country.iso2} value={country.iso2}>
+                        {country.name} (+{country.dialCode})
+                      </option>
+                    ))}
+                  </select>
+                  <input
+                    id="phone"
+                    className={`form-control ${errors.phone ? 'error' : ''}`}
+                    value={base.phone}
+                    onChange={upBase('phone')}
+                    placeholder="Contact number"
+                    inputMode="numeric"
+                  />
+                </div>
               </Field>
               <Field label="Email" name="email" error={errors.email}>
                 <input id="email" type="email" className={`form-control ${errors.email ? 'error' : ''}`}
