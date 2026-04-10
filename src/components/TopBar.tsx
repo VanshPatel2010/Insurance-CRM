@@ -1,4 +1,5 @@
 'use client';
+import { useState, useEffect } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { signOut, useSession } from 'next-auth/react';
 
@@ -24,10 +25,14 @@ export default function TopBar() {
   const { data: session } = useSession();
   const { title, subtitle } = getPageMeta(pathname);
 
-  const now = new Date();
-  const dateStr = now.toLocaleDateString('en-IN', {
-    weekday: 'short', day: 'numeric', month: 'long', year: 'numeric',
-  });
+  const [dateStr, setDateStr] = useState<string>('');
+
+  useEffect(() => {
+    const now = new Date();
+    setDateStr(now.toLocaleDateString('en-IN', {
+      weekday: 'short', day: 'numeric', month: 'long', year: 'numeric',
+    }));
+  }, []);
 
   async function handleLogout() {
     await signOut({ redirect: false });
@@ -41,9 +46,22 @@ export default function TopBar() {
 
   return (
     <header className="topbar">
-      <div className="topbar-left">
-        <h2>{title}</h2>
-        {subtitle && <p>{subtitle}</p>}
+      <div className="topbar-left" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+        <button 
+          className="mobile-menu-btn"
+          onClick={() => window.dispatchEvent(new Event('toggle-sidebar'))}
+          aria-label="Toggle Navigation"
+        >
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+            <line x1="3" y1="12" x2="21" y2="12"></line>
+            <line x1="3" y1="6" x2="21" y2="6"></line>
+            <line x1="3" y1="18" x2="21" y2="18"></line>
+          </svg>
+        </button>
+        <div>
+          <h2>{title}</h2>
+          {subtitle && <p>{subtitle}</p>}
+        </div>
       </div>
 
       <div className="topbar-right">

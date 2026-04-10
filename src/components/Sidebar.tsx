@@ -1,4 +1,5 @@
 'use client';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
@@ -16,9 +17,25 @@ const navLinks = [
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const [isOpen, setIsOpen] = useState(false);
+
+  useEffect(() => {
+    const handleToggle = () => setIsOpen(prev => !prev);
+    window.addEventListener('toggle-sidebar', handleToggle);
+    return () => window.removeEventListener('toggle-sidebar', handleToggle);
+  }, []);
+
+  useEffect(() => {
+    setIsOpen(false);
+  }, [pathname]);
 
   return (
-    <aside className="sidebar">
+    <>
+      <div 
+        className={`sidebar-overlay ${isOpen ? 'active' : ''}`} 
+        onClick={() => setIsOpen(false)} 
+      />
+      <aside className={`sidebar ${isOpen ? 'mobile-open' : ''}`}>
       <div className="sidebar-logo">
         <div className="sidebar-logo-icon">
           <Shield size={22} />
@@ -51,5 +68,6 @@ export default function Sidebar() {
         <p className="sidebar-footer-text">InsureCRM v1.0</p>
       </div>
     </aside>
+    </>
   );
 }

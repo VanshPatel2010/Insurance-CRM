@@ -1,31 +1,33 @@
-import type { Metadata } from 'next';
-import { Inter } from 'next/font/google';
-import './globals.css';
-import Providers from '@/components/Providers';
+import type { Metadata } from "next";
+import { Inter } from "next/font/google";
+import "./globals.css";
+import Providers from "@/components/Providers";
 
 // ── next/font/google — zero render-blocking ───────────────────────────────────
 // Fonts are self-hosted at build time by Next.js; no external network round-trip.
 // `display: swap` ensures text is visible immediately with the fallback font
 // while Inter loads asynchronously — no render-blocking, no layout shift.
 const inter = Inter({
-  subsets: ['latin'],
-  display: 'swap',
+  subsets: ["latin"],
+  display: "swap",
   // Only load the weights actually used in globals.css
-  weight: ['300', '400', '500', '600', '700', '800'],
+  weight: ["300", "400", "500", "600", "700", "800"],
   // Apply as a CSS variable so globals.css can reference --font-inter if needed
-  variable: '--font-inter',
+  variable: "--font-inter",
   // Next.js will automatically preload these and add `<link rel="preload">` tags
   preload: true,
 });
 
 export const metadata: Metadata = {
-  title: 'InsureCRM — Insurance Agent Management',
+  title: "InsureCRM — Insurance Agent Management",
   description:
-    'Professional CRM for insurance agents to manage customer policies across Motor, Medical, Fire, and Life insurance types.',
+    "Professional CRM for insurance agents to manage customer policies across Motor, Medical, Fire, and Life insurance types.",
   // Ensure correct canonical URL — eliminates http→https redirect for crawlers
   metadataBase: new URL(
-    process.env.NEXTAUTH_URL ?? 'https://insurance-crm.vercel.app'
+    process.env.NEXTAUTH_URL ?? "https://insurance-crm.vercel.app",
   ),
+  viewport:
+    "width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes",
 };
 
 export default function RootLayout({
