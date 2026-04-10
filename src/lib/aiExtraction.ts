@@ -1,26 +1,17 @@
 /**
- * aiExtraction.ts
+ * aiExtraction.ts — Hybrid Text-First Extraction Strategy
  *
- * Multi-provider PDF policy extractor with automatic fallback.
+ * VERCEL SERVERLESS SAFE: No canvas, @napi-rs/canvas, or puppeteer.
+ * Uses ONLY pdf-parse, pdfjs-dist, and Groq API.
  *
- * ─── ACTIVE STRATEGY ────────────────────────────────────────────────────────
- * 1. Gemini 2.5 Flash Lite  — native PDF support, primary provider
- * 2. Groq (Llama 4 Scout)   — vision via PDF→JPEG conversion
- * 3. HuggingFace (Llama 3.2 Vision) — vision via PDF→JPEG conversion
- * 4. Together AI (Llama 3.2 Vision Turbo) — vision via PDF→JPEG conversion
- *
- * Each provider is skipped when:
- * a) its API key is not configured, OR
- * b) its daily usage budget is exhausted (tracked in MongoDB), OR
- * c) the Redis sliding-window rate limit says to wait
+ * ─── STRATEGY ──────────────────────────────────────────────────────────────
+ * Step 1: Text Extraction  → extract text from PDF using pdf-parse
+ * Step 2: Scanned Check    → if text.length > 50: digital PDF, else: scanned
+ * Step 3a: Digital PDF     → send text to Groq Llama 4 Scout with JSON format
+ * Step 3b: Scanned PDF     → extract image from PDF, send to Groq Llama 4 Scout
  */
 
-import { isProviderAvailable, incrementUsage } from '@/lib/providerUsage';
-import {
-  getWaitMs,
-  recordRequest,
-  markCoolingDown,
-} from '@/lib/throttleManager';
+import * as pdfParse from 'pdf-parse';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -113,41 +104,64 @@ Rules:
 - Include ONLY the fields relevant to the identified policy type in details, set others to null
 `.trim();
 
-// ─── PDF → JPEG base64 conversion (pdfjs-dist + @napi-rs/canvas) ─────────────
+// ─── PDF → Image extraction (Vercel-safe, no canvas rendering) ──────────────
 
 /**
- * Renders the first page of a PDF to a JPEG base64 string.
- * Scale 2.0 is used to ensure high OCR accuracy for insurance fine print.
+ * Extracts the first embedded image from a PDF without rendering to canvas.
+ * Uses pdfjs-dist to access page resources and extract images directly.
+ * Returns base64 JPEG string, or null if no image found.
  */
-async function pdfToJpegBase64(pdfBuffer: Buffer): Promise<string> {
-  const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs');
-  const { createCanvas } = await import('@napi-rs/canvas');
-  const { resolve } = await import('path');
+async function extractFirstImageAsBase64(pdfBuffer: Buffer): Promise<string | null> {
+  try {
+    const pdfModule = await import('pdfjs-dist/legacy/build/pdf.mjs');
+    const pdfjs = pdfModule as any;
+    
+    const { resolve } = await import('path');
+    pdfjs.GlobalWorkerOptions.workerSrc = `file://${resolve(
+      'node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs'
+    )}`;
 
-  pdfjs.GlobalWorkerOptions.workerSrc = `file://${resolve(
-    'node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs'
-  )}`;
+    const data = new Uint8Array(pdfBuffer);
+    const loadingTask = pdfjs.getDocument({ data });
+    const pdfDoc = await loadingTask.promise;
 
-  const data = new Uint8Array(pdfBuffer);
-  const loadingTask = pdfjs.getDocument({ data });
-  const pdfDoc = await loadingTask.promise;
+    const page = await pdfDoc.getPage(1);
+    const resources = page.getResources?.() || {};
+    const XObject = resources.XObject?.getAll?.();
 
-  const page = await pdfDoc.getPage(1);
-  const viewport = page.getViewport({ scale: 2.0 });
+    if (XObject) {
+      for (const [name, xobj] of Object.entries(XObject)) {
+        try {
+          const xobjData = await xobj as any;
+          if (xobjData.subtype === 'Image' && xobjData.data) {
+            const imgBuffer = Buffer.isBuffer(xobjData.data)
+              ? xobjData.data
+              : Buffer.from(xobjData.data);
+            
+            const base64 = imgBuffer.toString('base64');
+            console.log('[aiExtraction] Extracted image from PDF resources');
+            await pdfDoc.destroy();
+            return base64;
+          }
+        } catch (err) {
+          console.warn(
+            `[aiExtraction] Error processing XObject ${name}:`,
+            (err as Error).message
+          );
+        }
+      }
+    }
 
-  const canvas = createCanvas(Math.ceil(viewport.width), Math.ceil(viewport.height));
-  const context = canvas.getContext('2d') as unknown as CanvasRenderingContext2D;
-
-  await page.render({ 
-    canvas: canvas as unknown as HTMLCanvasElement, 
-    canvasContext: context, 
-    viewport 
-  }).promise;
-  
-  await pdfDoc.destroy();
-
-  const jpegBuffer = await (canvas as any).encode('jpeg', 85) as Buffer;
-  return jpegBuffer.toString('base64');
+    await pdfDoc.destroy();
+    console.log('[aiExtraction] No embedded images found in PDF');
+    return null;
+  } catch (err) {
+    console.warn(
+      '[aiExtraction] Image extraction error:',
+      (err as Error).message
+    );
+    return null;
+  }
 }
 
 // ─── JSON parsing helper ──────────────────────────────────────────────────────
@@ -161,247 +175,223 @@ function parseJsonResponse(raw: string): unknown {
   return JSON.parse(cleaned);
 }
 
-// ─── Provider implementations ─────────────────────────────────────────────────
+// ─── Step 1: Extract text from PDF using pdf-parse ─────────────────────────
+/**
+ * Extracts raw text content from a PDF buffer, limited to the first 5 pages.
+ */
+async function extractTextFromPdf(pdfBuffer: Buffer): Promise<string> {
+  try {
+    // The 'max' property stops the parser after N pages
+    const options = {
+      max: 5, 
+    };
 
-/** 1. Gemini 2.5 Flash Lite — native PDF support. */
-async function tryGemini(pdfBuffer: Buffer): Promise<unknown> {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) throw new Error('GEMINI_API_KEY not configured');
+    const data = await (pdfParse as any).default(pdfBuffer, options);
+    
+    if (!data.text) return '';
 
-  const base64 = pdfBuffer.toString('base64');
+    // Standardize text: Remove "invisible" control characters and excessive whitespace
+    // This prevents Llama models from getting "stuck" in document completion mode.
+    const cleanText = data.text
+      .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
 
-  const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${apiKey}`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{
-          parts: [
-            { inline_data: { mime_type: 'application/pdf', data: base64 } },
-            { text: EXTRACTION_PROMPT },
-          ],
-        }],
-        generationConfig: { temperature: 0.1, maxOutputTokens: 2000 },
-      }),
-    }
-  );
-
-  if (res.status === 429) {
-    await markCoolingDown('gemini');
-    throw new Error(`Gemini 429: rate limited`);
+    return cleanText;
+  } catch (err) {
+    console.warn('[aiExtraction] pdf-parse error:', (err as Error).message);
+    return '';
   }
-
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(`Gemini ${res.status}: ${JSON.stringify(err)}`);
-  }
-
-  const json = await res.json();
-  const raw = json?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
-  if (!raw) throw new Error('Gemini returned empty response');
-  return parseJsonResponse(raw);
 }
 
-/** 2. Groq — vision via PDF→JPEG. */
-async function tryGroq(jpegBase64: string): Promise<unknown> {
+// ─── Groq API Implementations ─────────────────────────────────────────────────
+
+/**
+ * Step 3a: Send extracted text to Groq for digital PDFs.
+ */
+async function groqExtractText(text: string): Promise<unknown> {
   const apiKey = process.env.GROQ_API_KEY;
-  if (!apiKey) throw new Error('GROQ_API_KEY not configured');
+  if (!apiKey) {
+    throw new Error('GROQ_API_KEY not configured');
+  }
+
+  // Clean the text slightly to remove potential control characters that confuse tokenizers
+  const cleanText = text.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '').trim();
 
   const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
     method: 'POST',
     headers: {
-      'Authorization': `Bearer ${apiKey}`,
+      Authorization: `Bearer ${apiKey}`,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
       model: 'meta-llama/llama-4-scout-17b-16e-instruct',
-      messages: [{
-        role: 'user',
-        content: [
-          { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${jpegBase64}` } },
-          { type: 'text', text: EXTRACTION_PROMPT },
-        ],
-      }],
+      messages: [
+        {
+          role: 'system',
+          content: EXTRACTION_PROMPT,
+        },
+        {
+          role: 'user',
+          content: `DOCUMENT DATA FOR PROCESSING:
+---
+${cleanText}
+---
+
+STRICT INSTRUCTIONS:
+1. You are a data extraction engine.
+2. Return ONLY a valid JSON object starting with {"type": ...
+3. DO NOT repeat any text from the document above.
+4. DO NOT include any preamble, headers, or markdown formatting.
+5. If you echo the document text, the system will fail. Output ONLY the JSON.`,
+        },
+      ],
       temperature: 0.1,
       max_tokens: 2000,
+      response_format: { type: 'json_object' },
     }),
   });
 
   if (res.status === 429) {
-    await markCoolingDown('groq');
-    throw new Error(`Groq 429: rate limited`);
+    throw new Error('Groq rate limited (429)');
+  }
+
+  if (!res.ok) {
+    const errData = await res.json().catch(() => ({}));
+    throw new Error(`Groq ${res.status}: ${JSON.stringify(errData)}`);
   }
 
   const json = await res.json();
   const raw = json?.choices?.[0]?.message?.content?.trim();
+  
   return parseJsonResponse(raw);
 }
 
-/** 3. HuggingFace — vision via PDF→JPEG. */
-async function tryHuggingFace(jpegBase64: string): Promise<unknown> {
-  const apiKey = process.env.HUGGINGFACE_API_KEY;
-  if (!apiKey) throw new Error('HUGGINGFACE_API_KEY not configured');
-
-  const provider = process.env.HF_PROVIDER ?? 'fireworks-ai';
-  const model = process.env.HF_MODEL ?? 'Qwen/Qwen2.5-VL-7B-Instruct';
-
-  const res = await fetch(
-    `https://router.huggingface.co/${provider}/v1/chat/completions`,
-    {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model,
-        messages: [{
-          role: 'user',
-          content: [
-            { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${jpegBase64}` } },
-            { type: 'text', text: EXTRACTION_PROMPT },
-          ],
-        }],
-        max_tokens: 2000,
-        temperature: 0.1,
-      }),
-    }
-  );
-
-  if (res.status === 429 || res.status === 403) {
-    await markCoolingDown('huggingface');
-    throw new Error(`HuggingFace ${res.status}: limited`);
+/**
+ * Step 3b: Send extracted image to Groq for scanned PDFs.
+ */
+async function groqExtractImage(base64Image: string): Promise<unknown> {
+  const apiKey = process.env.GROQ_API_KEY;
+  if (!apiKey) {
+    throw new Error('GROQ_API_KEY not configured');
   }
 
-  const json = await res.json();
-  const raw = json?.choices?.[0]?.message?.content?.trim();
-  return parseJsonResponse(raw);
-}
-
-/** 4. Together AI — vision via PDF→JPEG. */
-async function tryTogether(jpegBase64: string): Promise<unknown> {
-  const apiKey = process.env.TOGETHER_API_KEY;
-  if (!apiKey) throw new Error('TOGETHER_API_KEY not configured');
-
-  const res = await fetch('https://api.together.xyz/v1/chat/completions', {
+  const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
     method: 'POST',
     headers: {
-      'Authorization': `Bearer ${apiKey}`,
+      Authorization: `Bearer ${apiKey}`,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      model: 'meta-llama/Llama-3.2-11B-Vision-Instruct-Turbo',
-      messages: [{
-        role: 'user',
-        content: [
-          { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${jpegBase64}` } },
-          { type: 'text', text: EXTRACTION_PROMPT },
-        ],
-      }],
+      model: 'meta-llama/llama-4-scout-17b-16e-instruct',
+      messages: [
+        {
+          role: 'user',
+          content: [
+            {
+              type: 'image_url',
+              image_url: { url: `data:image/jpeg;base64,${base64Image}` },
+            },
+            {
+              type: 'text',
+              text: EXTRACTION_PROMPT,
+            },
+          ],
+        },
+      ],
       temperature: 0.1,
       max_tokens: 2000,
     }),
   });
 
   if (res.status === 429) {
-    await markCoolingDown('together');
-    throw new Error(`Together AI 429: rate limited`);
+    throw new Error('Groq rate limited (429)');
+  }
+
+  if (!res.ok) {
+    const errData = await res.json().catch(() => ({}));
+    throw new Error(`Groq ${res.status}: ${JSON.stringify(errData)}`);
   }
 
   const json = await res.json();
   const raw = json?.choices?.[0]?.message?.content?.trim();
+  if (!raw) {
+    throw new Error('Groq returned empty response');
+  }
+
   return parseJsonResponse(raw);
 }
 
-// ─── Main exported function ───────────────────────────────────────────────────
-
 /**
- * Extracts data using the original image-based pipeline.
- * Gemini is tried first with the raw buffer. If it fails or is throttled,
- * the PDF is converted to a JPEG image once and passed to vision providers.
+ * Hybrid Text-First extraction strategy
  */
 export async function extractPolicyData(pdfBuffer: Buffer): Promise<ExtractionResult> {
-  let jpegBase64: string | null = null;
+  try {
+    console.log('[aiExtraction] Extracting text from PDF…');
+    const extractedText = await extractTextFromPdf(pdfBuffer);
 
-  async function getImage(): Promise<string> {
-    if (!jpegBase64) {
-      jpegBase64 = await pdfToJpegBase64(pdfBuffer);
-    }
-    return jpegBase64;
-  }
+    const isDigitalPdf = extractedText.length > 50;
+    console.log(
+      `[aiExtraction] PDF classified as ${isDigitalPdf ? 'digital' : 'scanned'} (text length: ${extractedText.length})`
+    );
 
-  // 1. Gemini — native PDF support
-  if (await isProviderAvailable('gemini')) {
-    const waitMs = await getWaitMs('gemini');
-    if (waitMs <= 0) {
-      try {
-        console.log('[aiExtraction] Trying Gemini…');
-        const data = await tryGemini(pdfBuffer);
-        await recordRequest('gemini');
-        await incrementUsage('gemini');
-        return { success: true, data, provider: 'gemini' };
-      } catch (err) {
-        console.warn('[aiExtraction] Gemini failed:', (err as Error).message);
+    if (isDigitalPdf) {
+      console.log('[aiExtraction] Sending text to Groq Llama 4 Scout…');
+      const data = await groqExtractText(extractedText);
+      return {
+        success: true,
+        data,
+        provider: 'groq-text',
+      };
+    } else {
+      console.log('[aiExtraction] Extracting image from scanned PDF…');
+      const base64Image = await extractFirstImageAsBase64(pdfBuffer);
+
+      if (base64Image) {
+        console.log('[aiExtraction] Sending image to Groq Llama 4 Scout…');
+        const data = await groqExtractImage(base64Image);
+        return {
+          success: true,
+          data,
+          provider: 'groq-vision',
+        };
+      } else {
+        console.log('[aiExtraction] No image found; falling back to text extraction…');
+        const data = await groqExtractText(extractedText);
+        return {
+          success: true,
+          data,
+          provider: 'groq-text-fallback',
+        };
       }
     }
-  }
+  } catch (err) {
+    const errorMsg = (err as Error).message;
+    console.error('[aiExtraction] Extraction failed:', errorMsg);
 
-  // 2. Groq — vision via PDF→JPEG
-  if (await isProviderAvailable('groq')) {
-    const waitMs = await getWaitMs('groq');
-    if (waitMs <= 0) {
-      try {
-        console.log('[aiExtraction] Trying Groq…');
-        const img = await getImage();
-        const data = await tryGroq(img);
-        await recordRequest('groq');
-        await incrementUsage('groq');
-        return { success: true, data, provider: 'groq' };
-      } catch (err) {
-        console.warn('[aiExtraction] Groq failed:', (err as Error).message);
-      }
+    if (errorMsg.includes('429') || errorMsg.includes('rate limited')) {
+      return {
+        success: false,
+        fallbackToManual: true,
+        message:
+          'Groq API rate limit reached. Please try again in a few moments or fill in details manually.',
+      };
     }
-  }
 
-  // 3. HuggingFace — vision via PDF→JPEG
-  if (await isProviderAvailable('huggingface')) {
-    const waitMs = await getWaitMs('huggingface');
-    if (waitMs <= 0) {
-      try {
-        console.log('[aiExtraction] Trying HuggingFace…');
-        const img = await getImage();
-        const data = await tryHuggingFace(img);
-        await recordRequest('huggingface');
-        await incrementUsage('huggingface');
-        return { success: true, data, provider: 'huggingface' };
-      } catch (err) {
-        console.warn('[aiExtraction] HuggingFace failed:', (err as Error).message);
-      }
+    if (errorMsg.includes('not configured')) {
+      return {
+        success: false,
+        fallbackToManual: true,
+        message:
+          'AI extraction service not properly configured. Please fill in details manually.',
+      };
     }
-  }
 
-  // 4. Together AI — vision via PDF→JPEG
-  if (await isProviderAvailable('together')) {
-    const waitMs = await getWaitMs('together');
-    if (waitMs <= 0) {
-      try {
-        console.log('[aiExtraction] Trying Together AI…');
-        const img = await getImage();
-        const data = await tryTogether(img);
-        await recordRequest('together');
-        await incrementUsage('together');
-        return { success: true, data, provider: 'together' };
-      } catch (err) {
-        console.warn('[aiExtraction] Together AI failed:', (err as Error).message);
-      }
-    }
+    return {
+      success: false,
+      fallbackToManual: true,
+      message:
+        'AI extraction service encountered an error. Please fill in details manually.',
+    };
   }
-
-  console.error('[aiExtraction] All providers failed or exhausted for today');
-  return {
-    success: false,
-    fallbackToManual: true,
-    message: 'All AI providers are currently unavailable. Please fill in details manually.',
-  };
 }
