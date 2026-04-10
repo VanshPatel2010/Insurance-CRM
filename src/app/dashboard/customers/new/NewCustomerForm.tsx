@@ -10,7 +10,7 @@ import {
   MemberInfo,
 } from '@/lib/types';
 import {
-  Car, Heart, Flame, Shield,
+  Car, Heart, Flame, Shield, User, Ship, Briefcase,
   Check, ChevronRight, ChevronLeft, Save, X,
   Upload, Loader2, AlertTriangle, AlertCircle, CheckCircle2,
 } from 'lucide-react';
@@ -22,6 +22,9 @@ const typeOptions: {
   { type: 'medical', label: 'Medical', desc: 'Health & hospitalization',    icon: Heart,  color: '#3B6D11', bg: '#edf7e4' },
   { type: 'fire',    label: 'Fire',    desc: 'Property & fire coverage',    icon: Flame,  color: '#BA7517', bg: '#fef4e0' },
   { type: 'life',    label: 'Life',    desc: 'Life & term insurance',       icon: Shield, color: '#534AB7', bg: '#eeecfb' },
+  { type: 'personal-accident', label: 'Personal Accident', desc: 'Accidental death & disability cover', icon: User, color: '#a33b2d', bg: '#fcebe8' },
+  { type: 'marine', label: 'Marine Insurance', desc: 'Cargo, shipment & transit coverage', icon: Ship, color: '#0a6c74', bg: '#e6f7f8' },
+  { type: 'workman-compensation', label: 'Workman Compensation', desc: 'Employee injury & employer liability', icon: Briefcase, color: '#6b4f1d', bg: '#f8f0df' },
 ];
 
 type Errors = Record<string, string>;
@@ -72,6 +75,18 @@ const emptyLife = () => ({
   sumAssured: '', premiumFrequency: '' as '' | 'Monthly' | 'Quarterly' | 'Annual',
   maturityDate: '', policyTerm: '',
 });
+const emptyPersonalAccident = () => ({
+  occupation: '', nomineeName: '', nomineeRelation: '',
+  coverageType: '', disabilityCover: '', riskClass: '',
+});
+const emptyMarine = () => ({
+  marineInsuranceType: '', cargoType: '', voyageFrom: '',
+  voyageTo: '', transitMode: '', vesselName: '',
+});
+const emptyWorkmanCompensation = () => ({
+  employeeCount: '', industryType: '', totalWages: '',
+  riskCategory: '', coverageLocation: '', employerLiabilityLimit: '',
+});
 
 function parseStoredPhone(value: unknown) {
   const cleanedPhone = String(value ?? '').replace(/\D/g, '');
@@ -118,6 +133,9 @@ export default function NewCustomerForm() {
   const [medical, setMedical] = useState(emptyMedical());
   const [fire,    setFire]    = useState(emptyFire());
   const [life,    setLife]    = useState(emptyLife());
+  const [personalAccident, setPersonalAccident] = useState(emptyPersonalAccident());
+  const [marine, setMarine] = useState(emptyMarine());
+  const [workmanCompensation, setWorkmanCompensation] = useState(emptyWorkmanCompensation());
 
   const [submitting,  setSubmitting]  = useState(false);
   const [submitError, setSubmitError] = useState('');
@@ -192,6 +210,33 @@ export default function NewCustomerForm() {
             premiumFrequency: (d.premiumFrequency as LifePolicy['premiumFrequency']) ?? '',
             maturityDate: String(d.maturityDate ?? ''), policyTerm: String(d.policyTerm ?? ''),
           });
+        } else if (p.type === 'personal-accident') {
+          setPersonalAccident({
+            occupation: String(d.occupation ?? ''),
+            nomineeName: String(d.nomineeName ?? ''),
+            nomineeRelation: String(d.nomineeRelation ?? ''),
+            coverageType: String(d.coverageType ?? ''),
+            disabilityCover: String(d.disabilityCover ?? ''),
+            riskClass: String(d.riskClass ?? ''),
+          });
+        } else if (p.type === 'marine') {
+          setMarine({
+            marineInsuranceType: String(d.marineInsuranceType ?? ''),
+            cargoType: String(d.cargoType ?? ''),
+            voyageFrom: String(d.voyageFrom ?? ''),
+            voyageTo: String(d.voyageTo ?? ''),
+            transitMode: String(d.transitMode ?? ''),
+            vesselName: String(d.vesselName ?? ''),
+          });
+        } else if (p.type === 'workman-compensation') {
+          setWorkmanCompensation({
+            employeeCount: String(d.employeeCount ?? ''),
+            industryType: String(d.industryType ?? ''),
+            totalWages: String(d.totalWages ?? ''),
+            riskCategory: String(d.riskCategory ?? ''),
+            coverageLocation: String(d.coverageLocation ?? ''),
+            employerLiabilityLimit: String(d.employerLiabilityLimit ?? ''),
+          });
         }
       })
       .catch(() => router.push('/dashboard/customers'))
@@ -208,7 +253,7 @@ export default function NewCustomerForm() {
     const type = data.type as PolicyType | undefined;
     const parsedPhone = parseStoredPhone(data.phone);
 
-    if (type && ['motor', 'medical', 'fire', 'life'].includes(type)) {
+    if (type && ['motor', 'medical', 'fire', 'life', 'personal-accident', 'marine', 'workman-compensation'].includes(type)) {
       setSelectedType(type);
     }
 
@@ -282,6 +327,33 @@ export default function NewCustomerForm() {
         maturityDate:      String(d.maturityDate ?? ''),
         policyTerm:        d.policyTerm != null ? String(d.policyTerm) : '',
       });
+    } else if (type === 'personal-accident') {
+      setPersonalAccident({
+        occupation: String(d.occupation ?? ''),
+        nomineeName: String(d.nomineeName ?? ''),
+        nomineeRelation: String(d.nomineeRelation ?? ''),
+        coverageType: String(d.coverageType ?? ''),
+        disabilityCover: String(d.disabilityCover ?? ''),
+        riskClass: String(d.riskClass ?? ''),
+      });
+    } else if (type === 'marine') {
+      setMarine({
+        marineInsuranceType: String(d.marineInsuranceType ?? ''),
+        cargoType: String(d.cargoType ?? ''),
+        voyageFrom: String(d.voyageFrom ?? ''),
+        voyageTo: String(d.voyageTo ?? ''),
+        transitMode: String(d.transitMode ?? ''),
+        vesselName: String(d.vesselName ?? ''),
+      });
+    } else if (type === 'workman-compensation') {
+      setWorkmanCompensation({
+        employeeCount: d.employeeCount != null ? String(d.employeeCount) : '',
+        industryType: String(d.industryType ?? ''),
+        totalWages: d.totalWages != null ? String(d.totalWages) : '',
+        riskCategory: String(d.riskCategory ?? ''),
+        coverageLocation: String(d.coverageLocation ?? ''),
+        employerLiabilityLimit: d.employerLiabilityLimit != null ? String(d.employerLiabilityLimit) : '',
+      });
     }
 
     setWasExtracted(true);
@@ -348,7 +420,8 @@ export default function NewCustomerForm() {
       if (!window.confirm(msg)) return;
     }
     setBase(emptyBase()); setMotor(emptyMotor()); setMedical(emptyMedical());
-    setFire(emptyFire()); setLife(emptyLife()); setErrors({});
+    setFire(emptyFire()); setLife(emptyLife()); setPersonalAccident(emptyPersonalAccident());
+    setMarine(emptyMarine()); setWorkmanCompensation(emptyWorkmanCompensation()); setErrors({});
     setWasExtracted(false); setExtractionConfidence(100);
     setFileError(''); setExtractionError(''); setSelectedFileName('');
     setIsExtracting(false);
@@ -387,6 +460,22 @@ export default function NewCustomerForm() {
       if (!life.nomineeName.trim())    e.nomineeName   = 'Required';
       if (!life.lifePolicyType)        e.lifePolicyType = 'Required';
     }
+    if (selectedType === 'personal-accident') {
+      if (!personalAccident.occupation.trim()) e.occupation = 'Required';
+      if (!personalAccident.nomineeName.trim()) e.nomineeName = 'Required';
+      if (!personalAccident.coverageType.trim()) e.coverageType = 'Required';
+    }
+    if (selectedType === 'marine') {
+      if (!marine.marineInsuranceType.trim()) e.marineInsuranceType = 'Required';
+      if (!marine.cargoType.trim()) e.cargoType = 'Required';
+      if (!marine.voyageFrom.trim()) e.voyageFrom = 'Required';
+      if (!marine.voyageTo.trim()) e.voyageTo = 'Required';
+    }
+    if (selectedType === 'workman-compensation') {
+      if (!workmanCompensation.employeeCount.trim()) e.employeeCount = 'Required';
+      if (!workmanCompensation.industryType.trim()) e.industryType = 'Required';
+      if (!workmanCompensation.coverageLocation.trim()) e.coverageLocation = 'Required';
+    }
     return e;
   }
 
@@ -401,6 +490,9 @@ export default function NewCustomerForm() {
     else if (selectedType === 'medical') details = { ...medical };
     else if (selectedType === 'fire')    details = { ...fire };
     else if (selectedType === 'life')    details = { ...life };
+    else if (selectedType === 'personal-accident') details = { ...personalAccident };
+    else if (selectedType === 'marine') details = { ...marine };
+    else if (selectedType === 'workman-compensation') details = { ...workmanCompensation };
 
     const selectedCountry =
       COUNTRY_CALLING_CODES.find(country => country.iso2 === base.phoneCountryIso2)
@@ -948,6 +1040,102 @@ export default function NewCustomerForm() {
                 <Field label="Maturity Date" name="maturityDate">
                   <input id="maturityDate" type="date" className="form-control" value={life.maturityDate}
                     onChange={e => setLife(l => ({ ...l, maturityDate: e.target.value }))} />
+                </Field>
+              </div>
+            </div>
+          )}
+
+          {selectedType === 'personal-accident' && (
+            <div className="form-section">
+              <div className="form-section-title" style={{ color: 'var(--personal-accident)' }}>🛡️ Personal Accident Details</div>
+              <div className="form-grid">
+                <Field label="Occupation" name="occupation" required error={errors.occupation}>
+                  <input id="occupation" className={`form-control ${errors.occupation ? 'error' : ''}`}
+                    value={personalAccident.occupation} onChange={e => setPersonalAccident(p => ({ ...p, occupation: e.target.value }))} placeholder="Occupation / profession" />
+                </Field>
+                <Field label="Coverage Type" name="coverageType" required error={errors.coverageType}>
+                  <input id="coverageType" className={`form-control ${errors.coverageType ? 'error' : ''}`}
+                    value={personalAccident.coverageType} onChange={e => setPersonalAccident(p => ({ ...p, coverageType: e.target.value }))} placeholder="Individual, family, group…" />
+                </Field>
+                <Field label="Disability Cover" name="disabilityCover">
+                  <input id="disabilityCover" className="form-control"
+                    value={personalAccident.disabilityCover} onChange={e => setPersonalAccident(p => ({ ...p, disabilityCover: e.target.value }))} placeholder="Permanent / partial disability details" />
+                </Field>
+                <Field label="Risk Class" name="riskClass">
+                  <input id="riskClass" className="form-control"
+                    value={personalAccident.riskClass} onChange={e => setPersonalAccident(p => ({ ...p, riskClass: e.target.value }))} placeholder="Low, medium, high…" />
+                </Field>
+                <Field label="Nominee Name" name="nomineeName" required error={errors.nomineeName}>
+                  <input id="nomineeName" className={`form-control ${errors.nomineeName ? 'error' : ''}`}
+                    value={personalAccident.nomineeName} onChange={e => setPersonalAccident(p => ({ ...p, nomineeName: e.target.value }))} placeholder="Nominee full name" />
+                </Field>
+                <Field label="Nominee Relation" name="nomineeRelation">
+                  <input id="nomineeRelation" className="form-control"
+                    value={personalAccident.nomineeRelation} onChange={e => setPersonalAccident(p => ({ ...p, nomineeRelation: e.target.value }))} placeholder="Spouse, parent, sibling…" />
+                </Field>
+              </div>
+            </div>
+          )}
+
+          {selectedType === 'marine' && (
+            <div className="form-section">
+              <div className="form-section-title" style={{ color: 'var(--marine)' }}>🚢 Marine Insurance Details</div>
+              <div className="form-grid">
+                <Field label="Insurance Type" name="marineInsuranceType" required error={errors.marineInsuranceType}>
+                  <input id="marineInsuranceType" className={`form-control ${errors.marineInsuranceType ? 'error' : ''}`}
+                    value={marine.marineInsuranceType} onChange={e => setMarine(m => ({ ...m, marineInsuranceType: e.target.value }))} placeholder="Marine cargo, inland transit…" />
+                </Field>
+                <Field label="Cargo Type" name="cargoType" required error={errors.cargoType}>
+                  <input id="cargoType" className={`form-control ${errors.cargoType ? 'error' : ''}`}
+                    value={marine.cargoType} onChange={e => setMarine(m => ({ ...m, cargoType: e.target.value }))} placeholder="Machinery, FMCG, raw material…" />
+                </Field>
+                <Field label="Voyage From" name="voyageFrom" required error={errors.voyageFrom}>
+                  <input id="voyageFrom" className={`form-control ${errors.voyageFrom ? 'error' : ''}`}
+                    value={marine.voyageFrom} onChange={e => setMarine(m => ({ ...m, voyageFrom: e.target.value }))} placeholder="Origin location" />
+                </Field>
+                <Field label="Voyage To" name="voyageTo" required error={errors.voyageTo}>
+                  <input id="voyageTo" className={`form-control ${errors.voyageTo ? 'error' : ''}`}
+                    value={marine.voyageTo} onChange={e => setMarine(m => ({ ...m, voyageTo: e.target.value }))} placeholder="Destination location" />
+                </Field>
+                <Field label="Transit Mode" name="transitMode">
+                  <input id="transitMode" className="form-control"
+                    value={marine.transitMode} onChange={e => setMarine(m => ({ ...m, transitMode: e.target.value }))} placeholder="Sea, road, rail, air…" />
+                </Field>
+                <Field label="Vessel / Carrier Name" name="vesselName">
+                  <input id="vesselName" className="form-control"
+                    value={marine.vesselName} onChange={e => setMarine(m => ({ ...m, vesselName: e.target.value }))} placeholder="Ship or carrier name" />
+                </Field>
+              </div>
+            </div>
+          )}
+
+          {selectedType === 'workman-compensation' && (
+            <div className="form-section">
+              <div className="form-section-title" style={{ color: 'var(--workman-compensation)' }}>👷 Workman Compensation Details</div>
+              <div className="form-grid">
+                <Field label="Employee Count" name="employeeCount" required error={errors.employeeCount}>
+                  <input id="employeeCount" className={`form-control ${errors.employeeCount ? 'error' : ''}`}
+                    value={workmanCompensation.employeeCount} onChange={e => setWorkmanCompensation(w => ({ ...w, employeeCount: e.target.value }))} placeholder="Number of employees covered" />
+                </Field>
+                <Field label="Industry Type" name="industryType" required error={errors.industryType}>
+                  <input id="industryType" className={`form-control ${errors.industryType ? 'error' : ''}`}
+                    value={workmanCompensation.industryType} onChange={e => setWorkmanCompensation(w => ({ ...w, industryType: e.target.value }))} placeholder="Construction, factory, warehouse…" />
+                </Field>
+                <Field label="Total Wages" name="totalWages">
+                  <input id="totalWages" className="form-control"
+                    value={workmanCompensation.totalWages} onChange={e => setWorkmanCompensation(w => ({ ...w, totalWages: e.target.value }))} placeholder="Total wages declared" />
+                </Field>
+                <Field label="Risk Category" name="riskCategory">
+                  <input id="riskCategory" className="form-control"
+                    value={workmanCompensation.riskCategory} onChange={e => setWorkmanCompensation(w => ({ ...w, riskCategory: e.target.value }))} placeholder="Low, medium, high…" />
+                </Field>
+                <Field label="Coverage Location" name="coverageLocation" required error={errors.coverageLocation}>
+                  <input id="coverageLocation" className={`form-control ${errors.coverageLocation ? 'error' : ''}`}
+                    value={workmanCompensation.coverageLocation} onChange={e => setWorkmanCompensation(w => ({ ...w, coverageLocation: e.target.value }))} placeholder="Factory / site / office location" />
+                </Field>
+                <Field label="Employer Liability Limit" name="employerLiabilityLimit">
+                  <input id="employerLiabilityLimit" className="form-control"
+                    value={workmanCompensation.employerLiabilityLimit} onChange={e => setWorkmanCompensation(w => ({ ...w, employerLiabilityLimit: e.target.value }))} placeholder="Liability limit amount" />
                 </Field>
               </div>
             </div>

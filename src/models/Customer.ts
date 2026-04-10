@@ -9,7 +9,7 @@ const CustomerSchema = new mongoose.Schema({
   },
   type: {
     type: String,
-    enum: ['motor', 'medical', 'fire', 'life'],
+    enum: ['motor', 'medical', 'fire', 'life', 'personal-accident', 'marine', 'workman-compensation'],
     required: true,
   },
 
@@ -34,6 +34,12 @@ const CustomerSchema = new mongoose.Schema({
   // Life:    { dateOfBirth, age, gender, occupation, annualIncome, smoker,
   //            nomineeName, nomineeRelation, lifePolicyType, sumAssured,
   //            premiumFrequency, maturityDate, policyTerm }
+  // Personal Accident: { occupation, nomineeName, nomineeRelation, coverageType,
+  //            disabilityCover, riskClass }
+  // Marine:  { marineInsuranceType, cargoType, voyageFrom, voyageTo,
+  //            transitMode, vesselName }
+  // Workman Compensation: { employeeCount, industryType, totalWages,
+  //            riskCategory, coverageLocation, employerLiabilityLimit }
   details: {
     type: mongoose.Schema.Types.Mixed,
     default: {},

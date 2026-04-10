@@ -251,6 +251,60 @@ export default function CustomerDetailPage() {
           </div>
         )}
 
+        {policy.type === 'personal-accident' && (
+          <div className="card">
+            <div className="card-header">
+              <span className="card-title" style={{ color: 'var(--personal-accident)' }}>🛡️ Personal Accident Details</span>
+            </div>
+            <div className="card-body">
+              <div className="detail-grid">
+                <Field label="Occupation" value={policy.occupation} />
+                <Field label="Coverage Type" value={policy.coverageType} />
+                <Field label="Disability Cover" value={policy.disabilityCover} />
+                <Field label="Risk Class" value={policy.riskClass} />
+                <Field label="Nominee Name" value={policy.nomineeName} />
+                <Field label="Nominee Relation" value={policy.nomineeRelation} />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {policy.type === 'marine' && (
+          <div className="card">
+            <div className="card-header">
+              <span className="card-title" style={{ color: 'var(--marine)' }}>🚢 Marine Insurance Details</span>
+            </div>
+            <div className="card-body">
+              <div className="detail-grid">
+                <Field label="Insurance Type" value={policy.marineInsuranceType} />
+                <Field label="Cargo Type" value={policy.cargoType} />
+                <Field label="Voyage From" value={policy.voyageFrom} />
+                <Field label="Voyage To" value={policy.voyageTo} />
+                <Field label="Transit Mode" value={policy.transitMode} />
+                <Field label="Vessel / Carrier Name" value={policy.vesselName} />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {policy.type === 'workman-compensation' && (
+          <div className="card">
+            <div className="card-header">
+              <span className="card-title" style={{ color: 'var(--workman-compensation)' }}>👷 Workman Compensation Details</span>
+            </div>
+            <div className="card-body">
+              <div className="detail-grid">
+                <Field label="Employee Count" value={policy.employeeCount} />
+                <Field label="Industry Type" value={policy.industryType} />
+                <Field label="Total Wages" value={formatCurrency(policy.totalWages)} />
+                <Field label="Risk Category" value={policy.riskCategory} />
+                <Field label="Coverage Location" value={policy.coverageLocation} />
+                <Field label="Employer Liability Limit" value={formatCurrency(policy.employerLiabilityLimit)} />
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Policy Info Card */}
         <div className="card">
           <div className="card-header">

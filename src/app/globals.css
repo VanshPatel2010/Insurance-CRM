@@ -24,6 +24,18 @@
   --life-bg: #eeecfb;
   --life-border: #c4c0ee;
 
+  --personal-accident: #a33b2d;
+  --personal-accident-bg: #fcebe8;
+  --personal-accident-border: #efc0b8;
+
+  --marine: #0a6c74;
+  --marine-bg: #e6f7f8;
+  --marine-border: #aedee2;
+
+  --workman-compensation: #6b4f1d;
+  --workman-compensation-bg: #f8f0df;
+  --workman-compensation-border: #e4cf9f;
+
   --status-active: #1a7d3e;
   --status-active-bg: #e4f5ec;
   --status-expired: #c0392b;
@@ -403,6 +415,9 @@ input, select, textarea { font-family: inherit; }
 .badge-medical { color: var(--medical); background: var(--medical-bg); border: 1px solid var(--medical-border); }
 .badge-fire    { color: var(--fire);    background: var(--fire-bg);    border: 1px solid var(--fire-border); }
 .badge-life    { color: var(--life);    background: var(--life-bg);    border: 1px solid var(--life-border); }
+.badge-personal-accident { color: var(--personal-accident); background: var(--personal-accident-bg); border: 1px solid var(--personal-accident-border); }
+.badge-marine { color: var(--marine); background: var(--marine-bg); border: 1px solid var(--marine-border); }
+.badge-workman-compensation { color: var(--workman-compensation); background: var(--workman-compensation-bg); border: 1px solid var(--workman-compensation-border); }
 
 .badge-active   { color: var(--status-active);   background: var(--status-active-bg);   border: 1px solid #a7e3be; }
 .badge-expired  { color: var(--status-expired);  background: var(--status-expired-bg);  border: 1px solid #f7b8b8; }
@@ -566,6 +581,9 @@ textarea.form-control { resize: vertical; min-height: 80px; }
 .type-card.selected-medical { border-color: var(--medical); background: var(--medical-bg); }
 .type-card.selected-fire    { border-color: var(--fire);    background: var(--fire-bg);    }
 .type-card.selected-life    { border-color: var(--life);    background: var(--life-bg);    }
+.type-card.selected-personal-accident { border-color: var(--personal-accident); background: var(--personal-accident-bg); }
+.type-card.selected-marine { border-color: var(--marine); background: var(--marine-bg); }
+.type-card.selected-workman-compensation { border-color: var(--workman-compensation); background: var(--workman-compensation-bg); }
 
 .type-card-icon {
   width: 52px; height: 52px;

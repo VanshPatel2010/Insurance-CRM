@@ -41,6 +41,9 @@ First identify the policy type:
 - medical  → health/mediclaim/family floater insurance
 - fire     → property/fire/building/shop insurance
 - life     → life/term/endowment/ULIP/money back insurance
+- personal-accident → personal accident / accidental death / disability cover
+- marine   → marine cargo / inland transit / shipment / transit insurance
+- workman-compensation → employee compensation / WC / employer liability / workers compensation
 
 Return this exact JSON structure (use null for fields not found):
 {
@@ -89,7 +92,22 @@ Return this exact JSON structure (use null for fields not found):
     "policyType": "",
     "premiumFrequency": "",
     "policyTerm": null,
-    "maturityDate": null
+    "maturityDate": null,
+    "coverageType": "",
+    "disabilityCover": "",
+    "riskClass": "",
+    "marineInsuranceType": "",
+    "cargoType": "",
+    "voyageFrom": "",
+    "voyageTo": "",
+    "transitMode": "",
+    "vesselName": "",
+    "employeeCount": null,
+    "industryType": "",
+    "totalWages": null,
+    "riskCategory": "",
+    "coverageLocation": "",
+    "employerLiabilityLimit": null
   }
 }
 

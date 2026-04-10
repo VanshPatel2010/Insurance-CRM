@@ -1,6 +1,13 @@
 // ─── Shared base fields for all policy types ─────────────────────────────────
 
-export type PolicyType = 'motor' | 'medical' | 'fire' | 'life';
+export type PolicyType =
+  | 'motor'
+  | 'medical'
+  | 'fire'
+  | 'life'
+  | 'personal-accident'
+  | 'marine'
+  | 'workman-compensation';
 export type PolicyStatus = 'Active' | 'Expired' | 'Expiring Soon';
 export type FuelType = 'Petrol' | 'Diesel' | 'CNG' | 'Electric';
 export type Gender = 'Male' | 'Female' | 'Other';
@@ -94,6 +101,49 @@ export interface LifePolicy extends BasePolicy {
   policyTerm: string;
 }
 
+// ─── Personal Accident Insurance ──────────────────────────────────────────────
+
+export interface PersonalAccidentPolicy extends BasePolicy {
+  type: 'personal-accident';
+  occupation: string;
+  nomineeName: string;
+  nomineeRelation: string;
+  coverageType: string;
+  disabilityCover: string;
+  riskClass: string;
+}
+
+// ─── Marine Insurance ─────────────────────────────────────────────────────────
+
+export interface MarinePolicy extends BasePolicy {
+  type: 'marine';
+  marineInsuranceType: string;
+  cargoType: string;
+  voyageFrom: string;
+  voyageTo: string;
+  transitMode: string;
+  vesselName: string;
+}
+
+// ─── Workman Compensation Insurance ──────────────────────────────────────────
+
+export interface WorkmanCompensationPolicy extends BasePolicy {
+  type: 'workman-compensation';
+  employeeCount: string;
+  industryType: string;
+  totalWages: string;
+  riskCategory: string;
+  coverageLocation: string;
+  employerLiabilityLimit: string;
+}
+
 // ─── Union ────────────────────────────────────────────────────────────────────
 
-export type Policy = MotorPolicy | MedicalPolicy | FirePolicy | LifePolicy;
+export type Policy =
+  | MotorPolicy
+  | MedicalPolicy
+  | FirePolicy
+  | LifePolicy
+  | PersonalAccidentPolicy
+  | MarinePolicy
+  | WorkmanCompensationPolicy;

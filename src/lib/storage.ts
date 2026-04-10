@@ -23,7 +23,14 @@ export interface CustomerListResponse {
 export interface CustomerDoc {
   _id: string;
   agentId: string;
-  type: 'motor' | 'medical' | 'fire' | 'life';
+  type:
+    | 'motor'
+    | 'medical'
+    | 'fire'
+    | 'life'
+    | 'personal-accident'
+    | 'marine'
+    | 'workman-compensation';
   customerName: string;
   phone: string;
   email: string;

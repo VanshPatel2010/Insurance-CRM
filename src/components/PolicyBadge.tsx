@@ -5,6 +5,9 @@ const labels: Record<PolicyType, string> = {
   medical: 'Medical',
   fire: 'Fire',
   life: 'Life',
+  'personal-accident': 'Personal Accident',
+  marine: 'Marine',
+  'workman-compensation': 'Workman Compensation',
 };
 
 interface Props {

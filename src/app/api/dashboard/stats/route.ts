@@ -61,7 +61,15 @@ export async function GET() {
   ]);
 
   // Shape typeCounts array → object { motor: 3, medical: 1, ... }
-  const typeCountMap: Record<string, number> = { motor: 0, medical: 0, fire: 0, life: 0 };
+  const typeCountMap: Record<string, number> = {
+    motor: 0,
+    medical: 0,
+    fire: 0,
+    life: 0,
+    'personal-accident': 0,
+    marine: 0,
+    'workman-compensation': 0,
+  };
   for (const row of typeCounts) {
     typeCountMap[row._id] = row.count;
   }

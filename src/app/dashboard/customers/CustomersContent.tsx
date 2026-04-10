@@ -145,6 +145,9 @@ export default function CustomersContent() {
           <option value="medical">Medical</option>
           <option value="fire">Fire</option>
           <option value="life">Life</option>
+          <option value="personal-accident">Personal Accident</option>
+          <option value="marine">Marine Insurance</option>
+          <option value="workman-compensation">Workman Compensation</option>
         </select>
 
         <select
