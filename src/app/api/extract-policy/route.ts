@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
-import { extractPolicyData } from '@/lib/aiExtraction';
+import { extractPolicyData, hasUsefulExtractionData } from '@/lib/aiExtraction';
 
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -39,6 +39,24 @@ export async function POST(req: NextRequest) {
           success: false,
           fallbackToManual: true,
           message: result.message,
+        },
+        { status: 503 }
+      );
+    }
+
+    // If extraction returned a valid JSON skeleton but no useful values,
+    // treat it as a fallback failure so the client does not show a false success.
+    if (!hasUsefulExtractionData(result.data)) {
+      console.warn('[extract-policy] Extraction succeeded but returned no usable data', {
+        provider: result.provider,
+        fileName: file.name,
+      });
+      return NextResponse.json(
+        {
+          success: false,
+          fallbackToManual: true,
+          message:
+            'Policy extraction returned no usable details. Please try another document or enter the details manually.',
         },
         { status: 503 }
       );

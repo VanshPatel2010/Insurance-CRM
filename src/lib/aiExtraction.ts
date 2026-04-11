@@ -10,7 +10,7 @@
  * Step 3a: Digital PDF     → send text to Groq Llama 4 Scout with JSON format
  * Step 3b: Scanned PDF     → extract image from PDF, send to Groq Llama 4 Scout
  */
-
+import { resolve } from 'path';
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export type ExtractionSuccess = {
@@ -129,16 +129,16 @@ Rules:
  */
 async function extractFirstImageAsBase64(pdfBuffer: Buffer): Promise<string | null> {
   try {
-    const pdfModule = await import('pdfjs-dist/legacy/build/pdf.mjs');
-    const pdfjs = pdfModule as any;
-    
-    const { resolve } = await import('path');
-    pdfjs.GlobalWorkerOptions.workerSrc = `file://${resolve(
-      'node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs'
-    )}`;
+    const pdfjs = await loadPdfJs();
 
     const data = new Uint8Array(pdfBuffer);
-    const loadingTask = pdfjs.getDocument({ data });
+    const loadingTask = pdfjs.getDocument({
+      data,
+      disableFontFace: true,
+      nativeImageDecoderSupport: 'none',
+      standardFontDataUrl: './node_modules/pdfjs-dist/standard_fonts/',
+      cMapUrl: './node_modules/pdfjs-dist/cmaps/',
+    });
     const pdfDoc = await loadingTask.promise;
 
     const page = await pdfDoc.getPage(1);
@@ -191,8 +191,52 @@ function parseJsonResponse(raw: string): unknown {
   return JSON.parse(cleaned);
 }
 
+export function hasUsefulExtractionData(data: unknown): boolean {
+  if (!data || typeof data !== 'object') return false;
+
+  const record = data as Record<string, unknown>;
+  const topLevelFields = ['customerName', 'policyNumber', 'premium', 'sumInsured', 'startDate', 'endDate', 'address', 'email', 'phone'];
+  if (topLevelFields.some(field => {
+    const value = record[field];
+    return value != null && value !== '' && !(Array.isArray(value) && value.length === 0);
+  })) {
+    return true;
+  }
+
+  const details = record.details;
+  if (details && typeof details === 'object') {
+    return Object.values(details as Record<string, unknown>).some(value =>
+      value != null && value !== '' && !(Array.isArray(value) && value.length === 0)
+    );
+  }
+
+  return false;
+}
+
+async function ensureServerDomMatrix(): Promise<void> {
+  if (typeof globalThis.DOMMatrix === 'function') return;
+  try {
+    const dommatrix = await import('dommatrix');
+    const DOMMatrixImpl = (dommatrix as any).DOMMatrix ?? (dommatrix as any).default ?? dommatrix;
+    if (typeof DOMMatrixImpl === 'function') {
+      globalThis.DOMMatrix = DOMMatrixImpl;
+    }
+  } catch (err) {
+    console.warn('[aiExtraction] Failed to polyfill DOMMatrix:', (err as Error).message);
+  }
+}
+
+async function loadPdfJs() {
+  await ensureServerDomMatrix();
+  const pdfModule = await import('pdfjs-dist/legacy/build/pdf.mjs');
+  const pdfjs = pdfModule as any;
+  pdfjs.GlobalWorkerOptions.workerSrc = `file://${resolve(
+    'node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs'
+  )}`;
+  return pdfjs as any;
+}
+
 // ─── Step 1: Extract text from PDF using pdf-parse ─────────────────────────
-import { resolve } from 'path';
 
 // ... (Keep your existing Types and EXTRACTION_PROMPT)
 
@@ -204,16 +248,16 @@ import { resolve } from 'path';
  */
 async function extractTextFromPdf(pdfBuffer: Buffer): Promise<string> {
   try {
-    const pdfModule = await import('pdfjs-dist/legacy/build/pdf.mjs');
-    const pdfjs = pdfModule as any;
-    
-    // Configure worker for Vercel environment
-    pdfjs.GlobalWorkerOptions.workerSrc = `file://${resolve(
-      'node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs'
-    )}`;
+    const pdfjs = await loadPdfJs();
 
     const data = new Uint8Array(pdfBuffer);
-    const loadingTask = pdfjs.getDocument({ data });
+    const loadingTask = pdfjs.getDocument({
+      data,
+      disableFontFace: true,
+      nativeImageDecoderSupport: 'none',
+      standardFontDataUrl: './node_modules/pdfjs-dist/standard_fonts/',
+      cMapUrl: './node_modules/pdfjs-dist/cmaps/',
+    });
     const pdfDoc = await loadingTask.promise;
 
     // LIMIT TO 1ST 5 PAGES
