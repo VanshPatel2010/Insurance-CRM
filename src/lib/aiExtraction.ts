@@ -2,15 +2,16 @@
  * aiExtraction.ts — Hybrid Text-First Extraction Strategy
  *
  * VERCEL SERVERLESS SAFE: No canvas, @napi-rs/canvas, or puppeteer.
- * Uses ONLY pdf-parse, pdfjs-dist, and Groq API.
+ * Uses ONLY pdf-parse, pdfjs-dist, and Gemini API (Groq commented out).
  *
  * ─── STRATEGY ──────────────────────────────────────────────────────────────
  * Step 1: Text Extraction  → extract text from PDF using pdf-parse
  * Step 2: Scanned Check    → if text.length > 50: digital PDF, else: scanned
- * Step 3a: Digital PDF     → send text to Groq Llama 4 Scout with JSON format
- * Step 3b: Scanned PDF     → extract image from PDF, send to Groq Llama 4 Scout
+ * Step 3a: Digital PDF     → send text to Gemini with JSON response mime type
+ * Step 3b: Scanned PDF     → extract image from PDF, send to Gemini
  */
 import { resolve } from 'path';
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export type ExtractionSuccess = {
@@ -122,11 +123,6 @@ Rules:
 
 // ─── PDF → Image extraction (Vercel-safe, no canvas rendering) ──────────────
 
-/**
- * Extracts the first embedded image from a PDF without rendering to canvas.
- * Uses pdfjs-dist to access page resources and extract images directly.
- * Returns base64 JPEG string, or null if no image found.
- */
 async function extractFirstImageAsBase64(pdfBuffer: Buffer): Promise<string | null> {
   try {
     const pdfjs = await loadPdfJs();
@@ -236,16 +232,8 @@ async function loadPdfJs() {
   return pdfjs as any;
 }
 
-// ─── Step 1: Extract text from PDF using pdf-parse ─────────────────────────
-
-// ... (Keep your existing Types and EXTRACTION_PROMPT)
-
 // ─── Step 1: Extract text from PDF using pdfjs-dist (Vercel-Safe) ───────────
 
-/**
- * Extracts text from the first 5 pages using pdfjs-dist directly.
- * This avoids the 'pdf-parse' import error and the Buffer() deprecation.
- */
 async function extractTextFromPdf(pdfBuffer: Buffer): Promise<string> {
   try {
     const pdfjs = await loadPdfJs();
@@ -260,35 +248,26 @@ async function extractTextFromPdf(pdfBuffer: Buffer): Promise<string> {
     });
     const pdfDoc = await loadingTask.promise;
 
-    // LIMIT TO 1ST 5 PAGES
     const numPages = Math.min(pdfDoc.numPages, 5);
     let fullText = '';
 
     for (let i = 1; i <= numPages; i++) {
       const page = await pdfDoc.getPage(i);
       const textContent = await page.getTextContent();
-      // Join items with spaces to maintain word separation
       const pageText = textContent.items.map((item: any) => item.str).join(' ');
       fullText += `[Page ${i}] ${pageText}\n`;
     }
 
     await pdfDoc.destroy();
 
-    // ─── MEASURABLE PRUNING LOGIC ───
-    
     return fullText
-      // 1. Remove control characters and ligatures
       .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '')
       .replace(/ﬀ/g, 'ff').replace(/ﬁ/g, 'fi').replace(/ﬂ/g, 'fl')
-      // 2. Remove repetitive decorative junk (e.g. ---------- or *********)
       .replace(/[-*_]{3,}/g, ' ')
-      // 3. Remove known "token-heavy" Indian legal footers (saves ~500 chars)
       .replace(/This is a computer generated document and does not require signature.*/gi, '')
       .replace(/For any grievance, please contact the insurance ombudsman.*/gi, '')
-      // 4. Collapse all whitespace into single spaces (THE BIGGEST SAVING)
       .replace(/\s+/g, ' ')
-      // 5. Slice at 12,000 chars (Max "safety" limit for high-density policy data)
-      .slice(0, 12000)
+      .slice(0, 8000)
       .trim();
       
   } catch (err) {
@@ -297,48 +276,30 @@ async function extractTextFromPdf(pdfBuffer: Buffer): Promise<string> {
   }
 }
 
-// ... (Rest of your groqExtractText and main function remains the same)
+// ─── Groq API Implementations (COMMENTED OUT) ────────────────────────────────
 
-// ─── Groq API Implementations ─────────────────────────────────────────────────
-
-/**
- * Step 3a: Send extracted text to Groq for digital PDFs.
- */
+/*
 async function groqExtractText(text: string): Promise<unknown> {
   const apiKey = process.env.GROQ_API_KEY;
   if (!apiKey) {
     throw new Error('GROQ_API_KEY not configured');
   }
 
-  // Clean the text slightly to remove potential control characters that confuse tokenizers
   const cleanText = text.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '').trim();
 
   const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
     method: 'POST',
     headers: {
-      Authorization: `Bearer ${apiKey}`,
+      Authorization: \`Bearer \${apiKey}\`,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      model: 'meta-llama/llama-4-scout-17b-16e-instruct',
+      model: 'groq/compound',
       messages: [
-        {
-          role: 'system',
-          content: EXTRACTION_PROMPT,
-        },
+        { role: 'system', content: EXTRACTION_PROMPT },
         {
           role: 'user',
-          content: `DOCUMENT DATA FOR PROCESSING:
----
-${cleanText}
----
-
-STRICT INSTRUCTIONS:
-1. You are a data extraction engine.
-2. Return ONLY a valid JSON object starting with {"type": ...
-3. DO NOT repeat any text from the document above.
-4. DO NOT include any preamble, headers, or markdown formatting.
-5. If you echo the document text, the system will fail. Output ONLY the JSON.`,
+          content: \`DOCUMENT DATA FOR PROCESSING:\\n---\\n\${cleanText}\\n---\\n\\nSTRICT INSTRUCTIONS:\\n1. You are a data extraction engine.\\n2. Return ONLY a valid JSON object starting with {"type": ...\\n3. DO NOT repeat any text from the document above.\\n4. DO NOT include any preamble, headers, or markdown formatting.\\n5. If you echo the document text, the system will fail. Output ONLY the JSON.\`,
         },
       ],
       temperature: 0.1,
@@ -347,24 +308,17 @@ STRICT INSTRUCTIONS:
     }),
   });
 
-  if (res.status === 429) {
-    throw new Error('Groq rate limited (429)');
-  }
-
+  if (res.status === 429) throw new Error('Groq rate limited (429)');
   if (!res.ok) {
     const errData = await res.json().catch(() => ({}));
-    throw new Error(`Groq ${res.status}: ${JSON.stringify(errData)}`);
+    throw new Error(\`Groq \${res.status}: \${JSON.stringify(errData)}\`);
   }
 
   const json = await res.json();
   const raw = json?.choices?.[0]?.message?.content?.trim();
-  
   return parseJsonResponse(raw);
 }
 
-/**
- * Step 3b: Send extracted image to Groq for scanned PDFs.
- */
 async function groqExtractImage(base64Image: string): Promise<unknown> {
   const apiKey = process.env.GROQ_API_KEY;
   if (!apiKey) {
@@ -374,7 +328,7 @@ async function groqExtractImage(base64Image: string): Promise<unknown> {
   const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
     method: 'POST',
     headers: {
-      Authorization: `Bearer ${apiKey}`,
+      Authorization: \`Bearer \${apiKey}\`,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
@@ -383,14 +337,8 @@ async function groqExtractImage(base64Image: string): Promise<unknown> {
         {
           role: 'user',
           content: [
-            {
-              type: 'image_url',
-              image_url: { url: `data:image/jpeg;base64,${base64Image}` },
-            },
-            {
-              type: 'text',
-              text: EXTRACTION_PROMPT,
-            },
+            { type: 'image_url', image_url: { url: \`data:image/jpeg;base64,\${base64Image}\` } },
+            { type: 'text', text: EXTRACTION_PROMPT },
           ],
         },
       ],
@@ -399,23 +347,118 @@ async function groqExtractImage(base64Image: string): Promise<unknown> {
     }),
   });
 
-  if (res.status === 429) {
-    throw new Error('Groq rate limited (429)');
-  }
-
+  if (res.status === 429) throw new Error('Groq rate limited (429)');
   if (!res.ok) {
     const errData = await res.json().catch(() => ({}));
-    throw new Error(`Groq ${res.status}: ${JSON.stringify(errData)}`);
+    throw new Error(\`Groq \${res.status}: \${JSON.stringify(errData)}\`);
   }
 
   const json = await res.json();
   const raw = json?.choices?.[0]?.message?.content?.trim();
-  if (!raw) {
-    throw new Error('Groq returned empty response');
-  }
-
+  if (!raw) throw new Error('Groq returned empty response');
   return parseJsonResponse(raw);
 }
+*/
+
+// ─── Gemini API Implementations ───────────────────────────────────────────────
+
+/**
+ * Step 3a: Send extracted text to Gemini for digital PDFs.
+ */
+async function geminiExtractText(text: string): Promise<unknown> {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    throw new Error('GEMINI_API_KEY not configured');
+  }
+
+  const cleanText = text.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '').trim();
+  const model = 'gemini-3.1-flash-lite-preview'; // Ensure you're using the standard REST model name
+
+  const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      contents: [
+        {
+          role: 'user',
+          parts: [
+            { text: EXTRACTION_PROMPT },
+            { text: `DOCUMENT DATA FOR PROCESSING:\n---\n${cleanText}\n---` }
+          ]
+        }
+      ],
+      generationConfig: {
+        temperature: 0.1,
+        maxOutputTokens: 2000,
+        responseMimeType: 'application/json' // Forces Gemini to return pure JSON
+      }
+    })
+  });
+
+  if (res.status === 429) throw new Error('Gemini rate limited (429)');
+  if (!res.ok) {
+    const errData = await res.json().catch(() => ({}));
+    throw new Error(`Gemini ${res.status}: ${JSON.stringify(errData)}`);
+  }
+
+  const json = await res.json();
+  const raw = json?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+  if (!raw) throw new Error('Gemini returned empty response');
+  
+  return parseJsonResponse(raw);
+}
+
+/**
+ * Step 3b: Send extracted image to Gemini for scanned PDFs.
+ */
+async function geminiExtractImage(base64Image: string): Promise<unknown> {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    throw new Error('GEMINI_API_KEY not configured');
+  }
+  
+  const model = 'gemini-1.5-flash';
+
+  const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      contents: [
+        {
+          role: 'user',
+          parts: [
+            { text: EXTRACTION_PROMPT },
+            {
+              inlineData: {
+                mimeType: 'image/jpeg',
+                data: base64Image
+              }
+            }
+          ]
+        }
+      ],
+      generationConfig: {
+        temperature: 0.1,
+        maxOutputTokens: 2000,
+        responseMimeType: 'application/json'
+      }
+    })
+  });
+
+  if (res.status === 429) throw new Error('Gemini rate limited (429)');
+  if (!res.ok) {
+    const errData = await res.json().catch(() => ({}));
+    throw new Error(`Gemini ${res.status}: ${JSON.stringify(errData)}`);
+  }
+
+  const json = await res.json();
+  const raw = json?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+  if (!raw) throw new Error('Gemini returned empty response');
+  
+  return parseJsonResponse(raw);
+}
+
+// ─── Main Controller ──────────────────────────────────────────────────────────
 
 /**
  * Hybrid Text-First extraction strategy
@@ -431,32 +474,38 @@ export async function extractPolicyData(pdfBuffer: Buffer): Promise<ExtractionRe
     );
 
     if (isDigitalPdf) {
-      console.log('[aiExtraction] Sending text to Groq Llama 4 Scout…');
-      const data = await groqExtractText(extractedText);
+      console.log('[aiExtraction] Sending text to Gemini API…');
+      // const data = await groqExtractText(extractedText);
+      const data = await geminiExtractText(extractedText);
+      
       return {
         success: true,
         data,
-        provider: 'groq-text',
+        provider: 'gemini-text',
       };
     } else {
       console.log('[aiExtraction] Extracting image from scanned PDF…');
       const base64Image = await extractFirstImageAsBase64(pdfBuffer);
 
       if (base64Image) {
-        console.log('[aiExtraction] Sending image to Groq Llama 4 Scout…');
-        const data = await groqExtractImage(base64Image);
+        console.log('[aiExtraction] Sending image to Gemini API…');
+        // const data = await groqExtractImage(base64Image);
+        const data = await geminiExtractImage(base64Image);
+        
         return {
           success: true,
           data,
-          provider: 'groq-vision',
+          provider: 'gemini-vision',
         };
       } else {
         console.log('[aiExtraction] No image found; falling back to text extraction…');
-        const data = await groqExtractText(extractedText);
+        // const data = await groqExtractText(extractedText);
+        const data = await geminiExtractText(extractedText);
+        
         return {
           success: true,
           data,
-          provider: 'groq-text-fallback',
+          provider: 'gemini-text-fallback',
         };
       }
     }
@@ -469,7 +518,7 @@ export async function extractPolicyData(pdfBuffer: Buffer): Promise<ExtractionRe
         success: false,
         fallbackToManual: true,
         message:
-          'Groq API rate limit reached. Please try again in a few moments or fill in details manually.',
+          'AI API rate limit reached. Please try again in a few moments or fill in details manually.',
       };
     }
 
