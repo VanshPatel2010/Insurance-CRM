@@ -9,7 +9,7 @@ const CustomerSchema = new mongoose.Schema({
   },
   type: {
     type: String,
-    enum: ['motor', 'medical', 'fire', 'life', 'personal-accident', 'marine', 'workman-compensation'],
+    enum: ['motor', 'medical', 'fire', 'life', 'personal-accident', 'marine', 'workman-compensation', 'travel'],
     required: true,
   },
 

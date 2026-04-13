@@ -38,6 +38,7 @@ import {
   Ship,
   Briefcase,
   AlertTriangle,
+  Plane,
   Clock,
   TrendingUp,
   ArrowRight,
@@ -55,15 +56,26 @@ export const revalidate = 60;
 // ── Policy type display config (server-only, never sent to the client) ─────────
 const typeConfig: Record<
   PolicyType,
-  { label: string; icon: typeof Car; color: string; bg: string }
+  { label: string; icon: any; color: string; bg: string }
 > = {
   motor: { label: "Motor", icon: Car, color: "#185FA5", bg: "#e9f2fc" },
   medical: { label: "Medical", icon: Heart, color: "#3B6D11", bg: "#edf7e4" },
   fire: { label: "Fire", icon: Flame, color: "#BA7517", bg: "#fef4e0" },
   life: { label: "Life", icon: Shield, color: "#534AB7", bg: "#eeecfb" },
-  "personal-accident": { label: "Personal Accident", icon: User, color: "#a33b2d", bg: "#fcebe8" },
+  "personal-accident": {
+    label: "Personal Accident",
+    icon: User,
+    color: "#a33b2d",
+    bg: "#fcebe8",
+  },
   marine: { label: "Marine", icon: Ship, color: "#0a6c74", bg: "#e6f7f8" },
-  "workman-compensation": { label: "Workman Compensation", icon: Briefcase, color: "#6b4f1d", bg: "#f8f0df" },
+  "workman-compensation": {
+    label: "Workman Compensation",
+    icon: Briefcase,
+    color: "#6b4f1d",
+    bg: "#f8f0df",
+  },
+  travel: { label: "Travel", icon: Plane, color: "#0891b2", bg: "#ecf7fa" },
 };
 
 // ── Server-side data fetch ────────────────────────────────────────────────────

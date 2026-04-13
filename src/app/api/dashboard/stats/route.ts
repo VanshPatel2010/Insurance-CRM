@@ -69,6 +69,7 @@ export async function GET() {
     'personal-accident': 0,
     marine: 0,
     'workman-compensation': 0,
+    travel: 0,
   };
   for (const row of typeCounts) {
     typeCountMap[row._id] = row.count;

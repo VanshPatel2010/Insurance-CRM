@@ -1,13 +1,14 @@
-import { PolicyType } from '@/lib/types';
+import { PolicyType } from "@/lib/types";
 
 const labels: Record<PolicyType, string> = {
-  motor: 'Motor',
-  medical: 'Medical',
-  fire: 'Fire',
-  life: 'Life',
-  'personal-accident': 'Personal Accident',
-  marine: 'Marine',
-  'workman-compensation': 'Workman Compensation',
+  motor: "Motor",
+  medical: "Medical",
+  fire: "Fire",
+  life: "Life",
+  "personal-accident": "Personal Accident",
+  marine: "Marine",
+  "workman-compensation": "Workman Compensation",
+  travel: "Travel",
 };
 
 interface Props {
@@ -15,9 +16,5 @@ interface Props {
 }
 
 export default function PolicyBadge({ type }: Props) {
-  return (
-    <span className={`badge badge-${type}`}>
-      {labels[type]}
-    </span>
-  );
+  return <span className={`badge badge-${type}`}>{labels[type]}</span>;
 }

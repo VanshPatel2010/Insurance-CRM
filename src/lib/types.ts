@@ -7,7 +7,8 @@ export type PolicyType =
   | 'life'
   | 'personal-accident'
   | 'marine'
-  | 'workman-compensation';
+  | 'workman-compensation'
+  | 'travel';
 export type PolicyStatus = 'Active' | 'Expired' | 'Expiring Soon';
 export type FuelType = 'Petrol' | 'Diesel' | 'CNG' | 'Electric';
 export type Gender = 'Male' | 'Female' | 'Other';
@@ -137,6 +138,32 @@ export interface WorkmanCompensationPolicy extends BasePolicy {
   employerLiabilityLimit: string;
 }
 
+// ─── Travel Insurance ─────────────────────────────────────────────────────────
+
+export type TripType = 'Domestic' | 'International';
+export type CoverageType = 'Trip Cancellation' | 'Medical' | 'Baggage Loss' | 'All-Risk';
+
+export interface Traveler {
+  name: string;
+  age: string;
+  relationship: string;
+}
+
+export interface TravelPolicy extends BasePolicy {
+  type: 'travel';
+  tripType: TripType | '';
+  destination: string[];
+  tripStartDate: string;
+  tripEndDate: string;
+  numberOfTravelers: string;
+  travelers: Traveler[];
+  visaType: string;
+  preExistingConditions?: string;
+  activitiesCovered: string[]; // e.g. Leisure, Adventure, Business, etc.
+  coverageAmount: string;
+  coverageType: CoverageType | '';
+}
+
 // ─── Union ────────────────────────────────────────────────────────────────────
 
 export type Policy =
@@ -146,4 +173,5 @@ export type Policy =
   | LifePolicy
   | PersonalAccidentPolicy
   | MarinePolicy
-  | WorkmanCompensationPolicy;
+  | WorkmanCompensationPolicy
+  | TravelPolicy;

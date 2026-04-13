@@ -28,6 +28,10 @@
   --personal-accident-bg: #fcebe8;
   --personal-accident-border: #efc0b8;
 
+  --travel: #0891b2;
+  --travel-bg: #ecf7fa;
+  --travel-border: #06b6d4;
+
   --marine: #0a6c74;
   --marine-bg: #e6f7f8;
   --marine-border: #aedee2;
@@ -418,6 +422,7 @@ input, select, textarea { font-family: inherit; }
 .badge-personal-accident { color: var(--personal-accident); background: var(--personal-accident-bg); border: 1px solid var(--personal-accident-border); }
 .badge-marine { color: var(--marine); background: var(--marine-bg); border: 1px solid var(--marine-border); }
 .badge-workman-compensation { color: var(--workman-compensation); background: var(--workman-compensation-bg); border: 1px solid var(--workman-compensation-border); }
+.badge-travel  { color: var(--travel);  background: var(--travel-bg);  border: 1px solid var(--travel-border); }
 
 .badge-active   { color: var(--status-active);   background: var(--status-active-bg);   border: 1px solid #a7e3be; }
 .badge-expired  { color: var(--status-expired);  background: var(--status-expired-bg);  border: 1px solid #f7b8b8; }
@@ -584,6 +589,7 @@ textarea.form-control { resize: vertical; min-height: 80px; }
 .type-card.selected-personal-accident { border-color: var(--personal-accident); background: var(--personal-accident-bg); }
 .type-card.selected-marine { border-color: var(--marine); background: var(--marine-bg); }
 .type-card.selected-workman-compensation { border-color: var(--workman-compensation); background: var(--workman-compensation-bg); }
+.type-card.selected-travel { border-color: var(--travel); background: var(--travel-bg); }
 
 .type-card-icon {
   width: 52px; height: 52px;

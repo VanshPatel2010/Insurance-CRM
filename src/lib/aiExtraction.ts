@@ -45,6 +45,7 @@ First identify the policy type:
 - personal-accident → personal accident / accidental death / disability cover
 - marine   → marine cargo / inland transit / shipment / transit insurance
 - workman-compensation → employee compensation / WC / employer liability / workers compensation
+- travel   → travel/trip/tourism/holiday/vacation/overseas/international/flight insurance
 
 Return this exact JSON structure (use null for fields not found):
 {
@@ -108,7 +109,17 @@ Return this exact JSON structure (use null for fields not found):
     "totalWages": null,
     "riskCategory": "",
     "coverageLocation": "",
-    "employerLiabilityLimit": null
+    "employerLiabilityLimit": null,
+    "tripType": "",
+    "destination": [],
+    "tripStartDate": null,
+    "tripEndDate": null,
+    "numberOfTravelers": null,
+    "travelers": [{"name": "", "age": "", "relationship": ""}],
+    "visaType": "",
+    "activitiesCovered": [],
+    "coverageAmount": null,
+    "coverageType": ""
   }
 }
 

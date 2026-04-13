@@ -20,6 +20,8 @@ import {
   FirePolicy,
   LifePolicy,
   MemberInfo,
+  TravelPolicy,
+  Traveler,
 } from "@/lib/types";
 import {
   Car,
@@ -29,6 +31,7 @@ import {
   User,
   Ship,
   Briefcase,
+  Plane,
   Check,
   ChevronRight,
   ChevronLeft,
@@ -45,7 +48,7 @@ const typeOptions: {
   type: PolicyType;
   label: string;
   desc: string;
-  icon: typeof Car;
+  icon: any;
   color: string;
   bg: string;
 }[] = [
@@ -104,6 +107,14 @@ const typeOptions: {
     icon: Briefcase,
     color: "#6b4f1d",
     bg: "#f8f0df",
+  },
+  {
+    type: "travel",
+    label: "Travel",
+    desc: "Domestic & international trips",
+    icon: Plane,
+    color: "#0891b2",
+    bg: "#ecf7fa",
   },
 ];
 
@@ -218,6 +229,24 @@ const emptyWorkmanCompensation = () => ({
   coverageLocation: "",
   employerLiabilityLimit: "",
 });
+const emptyTravel = () => ({
+  tripType: "" as "" | "Domestic" | "International",
+  destination: [] as string[],
+  tripStartDate: "",
+  tripEndDate: "",
+  numberOfTravelers: "1",
+  travelers: [{ name: "", age: "", relationship: "" }] as Traveler[],
+  visaType: "",
+  preExistingConditions: "",
+  activitiesCovered: [] as string[],
+  coverageAmount: "",
+  coverageType: "" as
+    | ""
+    | "Trip Cancellation"
+    | "Medical"
+    | "Baggage Loss"
+    | "All-Risk",
+});
 
 function parseStoredPhone(value: unknown) {
   const cleanedPhone = String(value ?? "").replace(/\D/g, "");
@@ -271,6 +300,7 @@ export default function NewCustomerForm() {
   const [workmanCompensation, setWorkmanCompensation] = useState(
     emptyWorkmanCompensation(),
   );
+  const [travel, setTravel] = useState(emptyTravel());
 
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
@@ -391,6 +421,30 @@ export default function NewCustomerForm() {
             coverageLocation: String(d.coverageLocation ?? ""),
             employerLiabilityLimit: String(d.employerLiabilityLimit ?? ""),
           });
+        } else if (p.type === "travel") {
+          setTravel({
+            tripType: String(d.tripType ?? "") as TravelPolicy["tripType"],
+            destination: (d.destination as string[]) || [],
+            tripStartDate: String(d.tripStartDate ?? ""),
+            tripEndDate: String(d.tripEndDate ?? ""),
+            numberOfTravelers: String(d.numberOfTravelers ?? "1"),
+            travelers: (
+              (d.travelers as any[]) || [
+                { name: "", age: "", relationship: "" },
+              ]
+            ).map((t) => ({
+              name: String(t?.name ?? ""),
+              age: t?.age != null ? String(t.age) : "",
+              relationship: String(t?.relationship ?? ""),
+            })),
+            visaType: String(d.visaType ?? ""),
+            preExistingConditions: String(d.preExistingConditions ?? ""),
+            activitiesCovered: (d.activitiesCovered as string[]) || [],
+            coverageAmount: String(d.coverageAmount ?? ""),
+            coverageType: String(
+              d.coverageType ?? "",
+            ) as TravelPolicy["coverageType"],
+          });
         }
       })
       .catch(() => router.push("/dashboard/customers"))
@@ -417,6 +471,7 @@ export default function NewCustomerForm() {
         "personal-accident",
         "marine",
         "workman-compensation",
+        "travel",
       ].includes(type)
     ) {
       setSelectedType(type);
@@ -555,6 +610,32 @@ export default function NewCustomerForm() {
           d.employerLiabilityLimit != null
             ? String(d.employerLiabilityLimit)
             : "",
+      });
+    } else if (type === "travel") {
+      setTravel({
+        tripType: String(d.tripType ?? "") as TravelPolicy["tripType"],
+        destination:
+          (d.destination as string[]) ||
+          (d.destination ? [String(d.destination)] : []),
+        tripStartDate: String(d.tripStartDate ?? ""),
+        tripEndDate: String(d.tripEndDate ?? ""),
+        numberOfTravelers:
+          d.numberOfTravelers != null ? String(d.numberOfTravelers) : "1",
+        travelers: (d.travelers as any[])?.map((t) => ({
+          name: String(t?.name ?? ""),
+          age: t?.age != null ? String(t.age) : "",
+          relationship: String(t?.relationship ?? ""),
+        })) || [{ name: "", age: "", relationship: "" }],
+        visaType: String(d.visaType ?? ""),
+        preExistingConditions: String(d.preExistingConditions ?? ""),
+        activitiesCovered:
+          (d.activitiesCovered as string[]) ||
+          (d.activitiesCovered ? [String(d.activitiesCovered)] : []),
+        coverageAmount:
+          d.coverageAmount != null ? String(d.coverageAmount) : "",
+        coverageType: String(
+          d.coverageType ?? "",
+        ) as TravelPolicy["coverageType"],
       });
     }
 
@@ -743,6 +824,12 @@ export default function NewCustomerForm() {
       if (!workmanCompensation.coverageLocation.trim())
         e.coverageLocation = "Required";
     }
+    if (selectedType === "travel") {
+      if (!travel.tripType.trim()) e.tripType = "Required";
+      if (!travel.tripStartDate.trim()) e.tripStartDate = "Required";
+      if (!travel.tripEndDate.trim()) e.tripEndDate = "Required";
+      if (!travel.coverageType.trim()) e.coverageType = "Required";
+    }
     return e;
   }
 
@@ -767,6 +854,7 @@ export default function NewCustomerForm() {
     else if (selectedType === "marine") details = { ...marine };
     else if (selectedType === "workman-compensation")
       details = { ...workmanCompensation };
+    else if (selectedType === "travel") details = { ...travel };
 
     const selectedCountry =
       COUNTRY_CALLING_CODES.find(
@@ -2294,6 +2382,259 @@ export default function NewCustomerForm() {
                     placeholder="Liability limit amount"
                   />
                 </Field>
+              </div>
+            </div>
+          )}
+
+          {selectedType === "travel" && (
+            <div className="form-section">
+              <div
+                className="form-section-title"
+                style={{ color: "var(--travel)" }}
+              >
+                ✈️ Travel Insurance Details
+              </div>
+              <div className="form-grid">
+                <Field
+                  label="Trip Type"
+                  name="tripType"
+                  required
+                  error={errors.tripType}
+                >
+                  <select
+                    id="tripType"
+                    className={`form-control ${errors.tripType ? "error" : ""}`}
+                    value={travel.tripType || ""}
+                    onChange={(e) =>
+                      setTravel((t) => ({
+                        ...t,
+                        tripType: e.target.value as typeof travel.tripType,
+                      }))
+                    }
+                  >
+                    <option value="">Select</option>
+                    <option>Domestic</option>
+                    <option>International</option>
+                  </select>
+                </Field>
+                <Field label="Visa Type" name="visaType">
+                  <input
+                    id="visaType"
+                    className="form-control"
+                    value={travel.visaType || ""}
+                    onChange={(e) =>
+                      setTravel((t) => ({ ...t, visaType: e.target.value }))
+                    }
+                    placeholder="e.g. Tourist, Business, Student"
+                  />
+                </Field>
+                <Field
+                  label="Trip Start Date"
+                  name="tripStartDate"
+                  required
+                  error={errors.tripStartDate}
+                >
+                  <input
+                    id="tripStartDate"
+                    type="date"
+                    className={`form-control ${errors.tripStartDate ? "error" : ""}`}
+                    value={travel.tripStartDate || ""}
+                    onChange={(e) =>
+                      setTravel((t) => ({
+                        ...t,
+                        tripStartDate: e.target.value,
+                      }))
+                    }
+                  />
+                </Field>
+                <Field
+                  label="Trip End Date"
+                  name="tripEndDate"
+                  required
+                  error={errors.tripEndDate}
+                >
+                  <input
+                    id="tripEndDate"
+                    type="date"
+                    className={`form-control ${errors.tripEndDate ? "error" : ""}`}
+                    value={travel.tripEndDate || ""}
+                    onChange={(e) =>
+                      setTravel((t) => ({ ...t, tripEndDate: e.target.value }))
+                    }
+                  />
+                </Field>
+                <Field
+                  label="Coverage Type"
+                  name="coverageType"
+                  required
+                  error={errors.coverageType}
+                >
+                  <select
+                    id="coverageType"
+                    className={`form-control ${errors.coverageType ? "error" : ""}`}
+                    value={travel.coverageType || ""}
+                    onChange={(e) =>
+                      setTravel((t) => ({
+                        ...t,
+                        coverageType: e.target
+                          .value as typeof travel.coverageType,
+                      }))
+                    }
+                  >
+                    <option value="">Select</option>
+                    <option>Trip Cancellation</option>
+                    <option>Medical</option>
+                    <option>Baggage Loss</option>
+                    <option>All-Risk</option>
+                  </select>
+                </Field>
+                <Field label="Coverage Amount" name="coverageAmount">
+                  <input
+                    id="coverageAmount"
+                    className="form-control"
+                    value={travel.coverageAmount || ""}
+                    onChange={(e) =>
+                      setTravel((t) => ({
+                        ...t,
+                        coverageAmount: e.target.value,
+                      }))
+                    }
+                    placeholder="e.g. $100,000"
+                  />
+                </Field>
+                <Field label="Destinations" name="destination">
+                  <input
+                    id="destination"
+                    className="form-control"
+                    value={travel.destination?.join?.(", ") || ""}
+                    onChange={(e) =>
+                      setTravel((t) => ({
+                        ...t,
+                        destination: e.target.value
+                          .split(",")
+                          .map((s) => s.trim())
+                          .filter(Boolean),
+                      }))
+                    }
+                    placeholder="e.g. France, Germany (comma-separated)"
+                  />
+                </Field>
+                <Field label="Activities Covered" name="activitiesCovered">
+                  <input
+                    id="activitiesCovered"
+                    className="form-control"
+                    value={travel.activitiesCovered?.join?.(", ") || ""}
+                    onChange={(e) =>
+                      setTravel((t) => ({
+                        ...t,
+                        activitiesCovered: e.target.value
+                          .split(",")
+                          .map((s) => s.trim())
+                          .filter(Boolean),
+                      }))
+                    }
+                    placeholder="e.g. Skiing, Hiking (comma-separated)"
+                  />
+                </Field>
+                <Field
+                  label="Pre-Existing Conditions"
+                  name="preExistingConditions"
+                >
+                  <input
+                    id="preExistingConditions"
+                    className="form-control"
+                    value={travel.preExistingConditions || ""}
+                    onChange={(e) =>
+                      setTravel((t) => ({
+                        ...t,
+                        preExistingConditions: e.target.value,
+                      }))
+                    }
+                    placeholder="e.g. Asthma, Diabetes"
+                  />
+                </Field>
+
+                {/* Travelers Array */}
+                <div className="form-group full-width">
+                  <label className="form-label">Number of Travelers</label>
+                  <input
+                    type="number"
+                    className="form-control"
+                    min={1}
+                    max={10}
+                    value={travel.numberOfTravelers || "1"}
+                    onChange={(e) => {
+                      const count = Math.max(
+                        1,
+                        Math.min(10, parseInt(e.target.value) || 1),
+                      );
+                      const newTravelers = [...travel.travelers];
+                      while (newTravelers.length < count)
+                        newTravelers.push({
+                          name: "",
+                          age: "",
+                          relationship: "",
+                        });
+                      while (newTravelers.length > count) newTravelers.pop();
+                      setTravel((t) => ({
+                        ...t,
+                        numberOfTravelers: String(count),
+                        travelers: newTravelers,
+                      }));
+                    }}
+                    style={{ maxWidth: 120 }}
+                  />
+                </div>
+                {travel.travelers.map((trr, i) => (
+                  <div
+                    key={i}
+                    className="member-row"
+                    style={{
+                      gridColumn: "1 / -1",
+                      display: "grid",
+                      gridTemplateColumns: "30px 1fr 80px 1fr",
+                      gap: "10px",
+                      alignItems: "center",
+                      marginBottom: 10,
+                    }}
+                  >
+                    <span className="member-row-num">#{i + 1}</span>
+                    <input
+                      className="form-control"
+                      placeholder={`Traveler ${i + 1} name`}
+                      value={trr.name || ""}
+                      onChange={(e) => {
+                        const updated = [...travel.travelers];
+                        updated[i] = { ...updated[i], name: e.target.value };
+                        setTravel((x) => ({ ...x, travelers: updated }));
+                      }}
+                    />
+                    <input
+                      className="form-control"
+                      placeholder="Age"
+                      maxLength={3}
+                      value={trr.age || ""}
+                      onChange={(e) => {
+                        const updated = [...travel.travelers];
+                        updated[i] = { ...updated[i], age: e.target.value };
+                        setTravel((x) => ({ ...x, travelers: updated }));
+                      }}
+                    />
+                    <input
+                      className="form-control"
+                      placeholder="Relationship"
+                      value={trr.relationship || ""}
+                      onChange={(e) => {
+                        const updated = [...travel.travelers];
+                        updated[i] = {
+                          ...updated[i],
+                          relationship: e.target.value,
+                        };
+                        setTravel((x) => ({ ...x, travelers: updated }));
+                      }}
+                    />
+                  </div>
+                ))}
               </div>
             </div>
           )}
