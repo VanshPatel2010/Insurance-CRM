@@ -287,9 +287,8 @@ async function extractTextFromPdf(pdfBuffer: Buffer): Promise<string> {
   }
 }
 
-// ─── Groq API Implementations (COMMENTED OUT) ────────────────────────────────
+// ─── Groq API Implementations ──────────────────────────────────────────────────
 
-/*
 async function groqExtractText(text: string): Promise<unknown> {
   const apiKey = process.env.GROQ_API_KEY;
   if (!apiKey) {
@@ -301,16 +300,26 @@ async function groqExtractText(text: string): Promise<unknown> {
   const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
     method: 'POST',
     headers: {
-      Authorization: \`Bearer \${apiKey}\`,
+      Authorization: `Bearer ${apiKey}`,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      model: 'groq/compound',
+      model: 'llama-3.3-70b-versatile',
       messages: [
         { role: 'system', content: EXTRACTION_PROMPT },
         {
           role: 'user',
-          content: \`DOCUMENT DATA FOR PROCESSING:\\n---\\n\${cleanText}\\n---\\n\\nSTRICT INSTRUCTIONS:\\n1. You are a data extraction engine.\\n2. Return ONLY a valid JSON object starting with {"type": ...\\n3. DO NOT repeat any text from the document above.\\n4. DO NOT include any preamble, headers, or markdown formatting.\\n5. If you echo the document text, the system will fail. Output ONLY the JSON.\`,
+          content: `DOCUMENT DATA FOR PROCESSING:
+---
+${cleanText}
+---
+
+STRICT INSTRUCTIONS:
+1. You are a data extraction engine.
+2. Return ONLY a valid JSON object starting with {"type": ...
+3. DO NOT repeat any text from the document above.
+4. DO NOT include any preamble, headers, or markdown formatting.
+5. If you echo the document text, the system will fail. Output ONLY the JSON.`,
         },
       ],
       temperature: 0.1,
@@ -322,7 +331,7 @@ async function groqExtractText(text: string): Promise<unknown> {
   if (res.status === 429) throw new Error('Groq rate limited (429)');
   if (!res.ok) {
     const errData = await res.json().catch(() => ({}));
-    throw new Error(\`Groq \${res.status}: \${JSON.stringify(errData)}\`);
+    throw new Error(`Groq ${res.status}: ${JSON.stringify(errData)}`);
   }
 
   const json = await res.json();
@@ -339,16 +348,16 @@ async function groqExtractImage(base64Image: string): Promise<unknown> {
   const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
     method: 'POST',
     headers: {
-      Authorization: \`Bearer \${apiKey}\`,
+      Authorization: `Bearer ${apiKey}`,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      model: 'meta-llama/llama-4-scout-17b-16e-instruct',
+      model: 'llama-3.2-11b-vision-preview',
       messages: [
         {
           role: 'user',
           content: [
-            { type: 'image_url', image_url: { url: \`data:image/jpeg;base64,\${base64Image}\` } },
+            { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${base64Image}` } },
             { type: 'text', text: EXTRACTION_PROMPT },
           ],
         },
@@ -361,7 +370,7 @@ async function groqExtractImage(base64Image: string): Promise<unknown> {
   if (res.status === 429) throw new Error('Groq rate limited (429)');
   if (!res.ok) {
     const errData = await res.json().catch(() => ({}));
-    throw new Error(\`Groq \${res.status}: \${JSON.stringify(errData)}\`);
+    throw new Error(`Groq ${res.status}: ${JSON.stringify(errData)}`);
   }
 
   const json = await res.json();
@@ -369,7 +378,6 @@ async function groqExtractImage(base64Image: string): Promise<unknown> {
   if (!raw) throw new Error('Groq returned empty response');
   return parseJsonResponse(raw);
 }
-*/
 
 // ─── Gemini API Implementations ───────────────────────────────────────────────
 
@@ -486,43 +494,67 @@ export async function extractPolicyData(pdfBuffer: Buffer): Promise<ExtractionRe
 
     if (isDigitalPdf) {
       console.log('[aiExtraction] Sending text to Gemini API…');
-      // const data = await groqExtractText(extractedText);
-      const data = await geminiExtractText(extractedText);
-      
-      return {
-        success: true,
-        data,
-        provider: 'gemini-text',
-      };
+      try {
+        const data = await geminiExtractText(extractedText);
+        return {
+          success: true,
+          data,
+          provider: 'gemini-text',
+        };
+      } catch (geminiErr) {
+        console.warn(`[aiExtraction] Gemini text extraction failed: ${(geminiErr as Error).message}. Trying Groq...`);
+        const data = await groqExtractText(extractedText);
+        return {
+          success: true,
+          data,
+          provider: 'groq-text',
+        };
+      }
     } else {
       console.log('[aiExtraction] Extracting image from scanned PDF…');
       const base64Image = await extractFirstImageAsBase64(pdfBuffer);
 
       if (base64Image) {
         console.log('[aiExtraction] Sending image to Gemini API…');
-        // const data = await groqExtractImage(base64Image);
-        const data = await geminiExtractImage(base64Image);
-        
-        return {
-          success: true,
-          data,
-          provider: 'gemini-vision',
-        };
+        try {
+          const data = await geminiExtractImage(base64Image);
+          return {
+            success: true,
+            data,
+            provider: 'gemini-vision',
+          };
+        } catch (geminiErr) {
+          console.warn(`[aiExtraction] Gemini image extraction failed: ${(geminiErr as Error).message}. Trying Groq...`);
+          const data = await groqExtractImage(base64Image);
+          return {
+            success: true,
+            data,
+            provider: 'groq-vision',
+          };
+        }
       } else {
         console.log('[aiExtraction] No image found; falling back to text extraction…');
-        // const data = await groqExtractText(extractedText);
-        const data = await geminiExtractText(extractedText);
-        
-        return {
-          success: true,
-          data,
-          provider: 'gemini-text-fallback',
-        };
+        try {
+          const data = await geminiExtractText(extractedText);
+          return {
+            success: true,
+            data,
+            provider: 'gemini-text-fallback',
+          };
+        } catch (geminiErr) {
+          console.warn(`[aiExtraction] Gemini fallback text extraction failed: ${(geminiErr as Error).message}. Trying Groq...`);
+          const data = await groqExtractText(extractedText);
+          return {
+            success: true,
+            data,
+            provider: 'groq-text-fallback',
+          };
+        }
       }
     }
   } catch (err) {
     const errorMsg = (err as Error).message;
-    console.error('[aiExtraction] Extraction failed:', errorMsg);
+    console.error('[aiExtraction] Extraction failed completely:', errorMsg);
 
     if (errorMsg.includes('429') || errorMsg.includes('rate limited')) {
       return {
