@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
+import { extractionRateLimit } from "@/lib/rateLimit";
+
 import { extractPolicyData, hasUsefulExtractionData } from '@/lib/aiExtraction';
 
 export async function POST(req: NextRequest) {
@@ -10,6 +12,23 @@ export async function POST(req: NextRequest) {
   }
 
   try {
+    // Apply rate limit based on user ID
+    if (process.env.UPSTASH_REDIS_REST_URL) {
+      const { success, limit, reset, remaining } = await extractionRateLimit.limit(
+        session.user.id
+      );
+      if (!success) {
+        return NextResponse.json(
+          { error: 'Too many PDF extractions. Please wait a minute before trying again.' },
+          { status: 429, headers: {
+            'X-RateLimit-Limit': limit.toString(),
+            'X-RateLimit-Remaining': remaining.toString(),
+            'X-RateLimit-Reset': reset.toString()
+          }}
+        );
+      }
+    }
+
     const formData = await req.formData();
     const file = formData.get('pdf') as File;
 
@@ -21,8 +40,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'File must be a PDF' }, { status: 400 });
     }
 
-    if (file.size > 10 * 1024 * 1024) {
-      return NextResponse.json({ error: 'File size must be under 10MB' }, { status: 400 });
+    if (file.size > 5 * 1024 * 1024) {
+      return NextResponse.json({ error: 'File size must be under 5MB' }, { status: 400 });
     }
 
     // Convert to Buffer — stays in memory, never persisted to disk

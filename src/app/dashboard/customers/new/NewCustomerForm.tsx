@@ -11,6 +11,7 @@ import {
   COUNTRY_CALLING_CODES,
   DEFAULT_COUNTRY_ISO2,
 } from "@/lib/countryCallingCodes";
+import { useQueryClient } from "@tanstack/react-query";
 import { calculateAge } from "@/lib/utils";
 import {
   Policy,
@@ -280,6 +281,7 @@ function parseStoredPhone(value: unknown) {
 // ─────────────────────────────────────────────────────────────────────────────
 export default function NewCustomerForm() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const searchParams = useSearchParams();
   const editId = searchParams.get("id");
 
@@ -871,9 +873,13 @@ export default function NewCustomerForm() {
     try {
       if (editId) {
         await updateCustomer(editId, payload);
+        queryClient.invalidateQueries({ queryKey: ["customers"] });
+        queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
         router.push(`/dashboard/customers/${editId}`);
       } else {
         const created = await saveCustomer(payload);
+        queryClient.invalidateQueries({ queryKey: ["customers"] });
+        queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
         router.push(`/dashboard/customers/${created._id}`);
       }
     } catch (err: unknown) {

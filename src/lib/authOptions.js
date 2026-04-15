@@ -2,6 +2,7 @@ import CredentialsProvider from 'next-auth/providers/credentials';
 import bcrypt from 'bcryptjs';
 import { connectDB } from '@/lib/mongodb';
 import Agent from '@/models/Agent';
+import { loginRateLimit } from '@/lib/rateLimit';
 
 /** @type {import('next-auth').NextAuthOptions} */
 export const authOptions = {
@@ -13,10 +14,19 @@ export const authOptions = {
         password: { label: 'Password', type: 'password' },
       },
 
-      async authorize(credentials) {
+      async authorize(credentials, req) {
         const { email, password } = credentials ?? {};
 
         if (!email || !password) return null;
+
+        // Apply rate limit based on email attempt
+        if (process.env.UPSTASH_REDIS_REST_URL) {
+          const identifier = `login_${email.toLowerCase()}`;
+          const { success } = await loginRateLimit.limit(identifier);
+          if (!success) {
+            throw new Error('Too many login attempts. Please wait 5 minutes.');
+          }
+        }
 
         await connectDB();
 
@@ -31,6 +41,7 @@ export const authOptions = {
           name:       agent.name,
           email:      agent.email,
           agencyName: agent.agencyName,
+          isAdmin:    agent.isAdmin,
         };
       },
     }),
@@ -43,6 +54,7 @@ export const authOptions = {
       if (user) {
         token.id         = user.id;
         token.agencyName = user.agencyName;
+        token.isAdmin    = user.isAdmin;
       }
       return token;
     },
@@ -50,6 +62,7 @@ export const authOptions = {
     async session({ session, token }) {
       if (token && session.user) {
         session.user.id         = token.id;
+        session.user.isAdmin    = token.isAdmin;
         session.user.agencyName = token.agencyName;
       }
       return session;

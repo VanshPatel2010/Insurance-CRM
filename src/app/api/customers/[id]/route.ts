@@ -1,8 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/authOptions';
-import { connectDB } from '@/lib/mongodb';
-import Customer from '@/models/Customer';
+import { NextRequest, NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/authOptions";
+import { connectDB } from "@/lib/mongodb";
+import Customer from "@/models/Customer";
+import { customerUpdateSchema } from "@/lib/validations";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -10,7 +11,7 @@ type Params = { params: Promise<{ id: string }> };
 export async function GET(_req: NextRequest, { params }: Params) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const { id } = await params;
@@ -22,7 +23,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
   }).lean();
 
   if (!customer) {
-    return NextResponse.json({ error: 'Customer not found' }, { status: 404 });
+    return NextResponse.json({ error: "Customer not found" }, { status: 404 });
   }
 
   return NextResponse.json(customer);
@@ -32,7 +33,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
 export async function PUT(req: NextRequest, { params }: Params) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const { id } = await params;
@@ -44,20 +45,46 @@ export async function PUT(req: NextRequest, { params }: Params) {
   });
 
   if (!customer) {
-    return NextResponse.json({ error: 'Customer not found' }, { status: 404 });
+    return NextResponse.json({ error: "Customer not found" }, { status: 404 });
   }
 
-  const body = await req.json();
+  let body;
+  try {
+    body = await req.json();
+  } catch (err) {
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  }
+
+  // Validate the incoming updates against Zod
+  const parsed = customerUpdateSchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: "Validation failed", details: parsed.error.format() },
+      { status: 400 }
+    );
+  }
+
+  const data = parsed.data;
 
   const {
-    type, customerName, phone, email, address, policyNumber,
-    premiumAmount, sumInsured, startDate, endDate,
+    type,
+    customerName,
+    phone,
+    email,
+    address,
+    policyNumber,
+    premiumAmount,
+    sumInsured,
+    startDate,
+    endDate,
     /* eslint-disable @typescript-eslint/no-unused-vars */
-    _id: _i, agentId: _a, createdAt: _c,
+    _id: _i,
+    agentId: _a,
+    createdAt: _c,
     /* eslint-enable */
     details: submittedDetails,
     ...rest
-  } = body;
+  } = data as any;
 
   // Check for duplicate policyNumber on update (allow same record)
   if (policyNumber && policyNumber !== customer.policyNumber) {
@@ -75,16 +102,16 @@ export async function PUT(req: NextRequest, { params }: Params) {
   }
 
   Object.assign(customer, {
-    ...(type          && { type }),
-    ...(customerName  && { customerName }),
-    ...(phone         && { phone }),
-    email:         email         ?? customer.email,
-    address:       address       ?? customer.address,
-    ...(policyNumber  && { policyNumber }),
+    ...(type && { type }),
+    ...(customerName && { customerName }),
+    ...(phone && { phone }),
+    email: email ?? customer.email,
+    address: address ?? customer.address,
+    ...(policyNumber && { policyNumber }),
     ...(premiumAmount && { premiumAmount }),
-    sumInsured:    sumInsured    ?? customer.sumInsured,
-    ...(startDate     && { startDate }),
-    ...(endDate       && { endDate }),
+    sumInsured: sumInsured ?? customer.sumInsured ?? "",
+    ...(startDate && { startDate }),
+    ...(endDate && { endDate }),
     details: { ...customer.details, ...(submittedDetails ?? {}), ...rest },
     updatedAt: new Date(),
   });
@@ -97,7 +124,7 @@ export async function PUT(req: NextRequest, { params }: Params) {
 export async function DELETE(_req: NextRequest, { params }: Params) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const { id } = await params;
@@ -109,8 +136,8 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
   });
 
   if (!deleted) {
-    return NextResponse.json({ error: 'Customer not found' }, { status: 404 });
+    return NextResponse.json({ error: "Customer not found" }, { status: 404 });
   }
 
-  return NextResponse.json({ message: 'Customer deleted successfully' });
+  return NextResponse.json({ message: "Customer deleted successfully" });
 }

@@ -33,6 +33,29 @@ const AgentSchema = new mongoose.Schema({
     trim: true,
     default: null,
   },
+  // Subscription & Account Management
+  isAdmin: {
+    type: Boolean,
+    default: false,
+  },
+  subscriptionStatus: {
+    type: String,
+    enum: ['active', 'inactive', 'suspended', 'trial'],
+    default: 'trial',
+  },
+  subscriptionTier: {
+    type: String,
+    enum: ['free', 'basic', 'premium', 'enterprise'],
+    default: 'free',
+  },
+  subscriptionStartDate: {
+    type: Date,
+    default: null,
+  },
+  subscriptionEndDate: {
+    type: Date,
+    default: null,
+  },
   createdAt: {
     type: Date,
     default: Date.now,
