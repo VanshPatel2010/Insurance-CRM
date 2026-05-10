@@ -43,20 +43,54 @@ export default function CustomerDetailPage() {
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [deleteError, setDeleteError] = useState("");
+  const [loadError, setLoadError] = useState("");
 
   useEffect(() => {
     getCustomer(id)
       .then((doc) => setPolicy(flattenCustomer(doc)))
-      .catch(() => router.push("/dashboard/customers"))
+      .catch((err) => {
+        // Log and surface a load error instead of immediately redirecting.
+        // Redirecting here caused a quick bounce back to the list on transient
+        // errors (e.g. network hiccups or auth token timing). Keep the user
+        // on the page and show an error they can act on.
+        // eslint-disable-next-line no-console
+        console.error("[Load customer]", err);
+        setLoadError(err instanceof Error ? err.message : String(err));
+      })
       .finally(() => setMounted(true));
-  }, [id, router]);
+    // Only re-run when the customer ID changes.  `router` was previously
+    // listed here but it is NOT used inside the effect and its reference is
+    // not stable in Next.js, which caused a duplicate fetch on every mount.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id]);
 
-  if (!mounted || !policy) {
+  if (!mounted) {
     return (
       <div
         style={{ padding: 40, textAlign: "center", color: "var(--text-muted)" }}
       >
         Loading…
+      </div>
+    );
+  }
+
+  if (!policy) {
+    return (
+      <div
+        style={{ padding: 40, textAlign: "center", color: "var(--text-muted)" }}
+      >
+        {loadError ? (
+          <div className="alert alert-danger" style={{ marginBottom: 16 }}>
+            <AlertTriangle size={16} /> {loadError}
+          </div>
+        ) : (
+          <div>Loading…</div>
+        )}
+        <div style={{ marginTop: 12 }}>
+          <Link href="/dashboard/customers" className="btn btn-ghost btn-sm">
+            Back to customers
+          </Link>
+        </div>
       </div>
     );
   }

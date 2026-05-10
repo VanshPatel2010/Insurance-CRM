@@ -342,7 +342,7 @@ export default function NewCustomerForm() {
           startDate: String(p.startDate ?? ""),
           endDate: String(p.endDate ?? ""),
         });
-        const d = p.details as Record<string, unknown>;
+        const d = (p.details ?? {}) as Record<string, unknown>;
         if (p.type === "motor") {
           setMotor({
             vehicleMake: String(d.vehicleMake ?? ""),
@@ -449,7 +449,15 @@ export default function NewCustomerForm() {
           });
         }
       })
-      .catch(() => router.push("/dashboard/customers"))
+      .catch((err) => {
+        // Don't forcibly navigate away on transient load errors — surface
+        // the error so the user can retry or inspect. Redirecting here was
+        // causing the UI to immediately jump back to the customers list.
+        // Log for debugging and show a message in the form.
+        // eslint-disable-next-line no-console
+        console.error("[Load customer]", err);
+        setSubmitError("Failed to load customer for editing");
+      })
       .finally(() => setMounted(true));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editId]);
