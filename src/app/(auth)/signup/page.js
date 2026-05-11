@@ -72,8 +72,8 @@ export default function SignupPage() {
         return;
       }
 
-      setSuccess('Account created successfully! Redirecting to login…');
-      setTimeout(() => router.push('/login'), 1500);
+      setSuccess(data.message || 'Account created successfully! Please check your email to verify your account.');
+      setTimeout(() => router.push('/login'), 3000);
     } catch {
       setApiError('Network error. Please check your connection and try again.');
     } finally {

@@ -36,6 +36,10 @@ export const authOptions = {
         const isMatch = await bcrypt.compare(password, agent.password);
         if (!isMatch) return null;
 
+        if (!agent.isVerified) {
+          throw new Error('Please verify your email address to log in.');
+        }
+
         return {
           id:         agent._id.toString(),
           name:       agent.name,

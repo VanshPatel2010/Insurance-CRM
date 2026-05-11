@@ -33,6 +33,19 @@ const AgentSchema = new mongoose.Schema({
     trim: true,
     default: null,
   },
+  // Email Verification
+  isVerified: {
+    type: Boolean,
+    default: false,
+  },
+  verificationToken: {
+    type: String,
+    default: null,
+  },
+  verificationTokenExpires: {
+    type: Date,
+    default: null,
+  },
   // Subscription & Account Management
   isAdmin: {
     type: Boolean,

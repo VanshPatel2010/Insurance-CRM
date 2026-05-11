@@ -1,11 +1,21 @@
 'use client';
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { signIn } from 'next-auth/react';
 
 export default function LoginPage() {
+  return (
+    <Suspense fallback={<div style={styles.page}>Loading...</div>}>
+      <LoginContent />
+    </Suspense>
+  );
+}
+
+function LoginContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const verified = searchParams.get('verified');
 
   const [form, setForm]           = useState({ email: '', password: '' });
   const [showPassword, setShowPassword] = useState(false);
@@ -44,7 +54,11 @@ export default function LoginPage() {
       });
 
       if (result?.error) {
-        setApiError('Invalid email or password. Please try again.');
+        setApiError(
+          result.error === 'Please verify your email address to log in.'
+            ? result.error
+            : 'Invalid email or password. Please try again.'
+        );
       } else if (result?.ok) {
         router.push('/dashboard');
       }
@@ -78,6 +92,13 @@ export default function LoginPage() {
         {apiError && (
           <div style={styles.errorBanner}>
             <span>⚠</span> {apiError}
+          </div>
+        )}
+
+        {/* Verification Success */}
+        {verified === 'true' && !apiError && (
+          <div style={{...styles.errorBanner, background: '#e4f5ec', border: '1px solid #a7e3be', color: '#1a7d3e'}}>
+            <span>✓</span> Email verified successfully! You can now log in.
           </div>
         )}
 

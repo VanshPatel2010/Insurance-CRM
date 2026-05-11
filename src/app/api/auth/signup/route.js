@@ -1,7 +1,9 @@
 import { NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
+import crypto from 'crypto';
 import { connectDB } from '@/lib/mongodb';
 import Agent from '@/models/Agent';
+import { sendVerificationEmail } from '@/lib/email';
 
 export async function POST(request) {
   try {
@@ -48,6 +50,9 @@ export async function POST(request) {
     const hashedPassword = await bcrypt.hash(password, 12);
 
     // ── 5. Create the agent record ───────────────────────────────────────────
+    const verificationToken = crypto.randomBytes(32).toString('hex');
+    const verificationTokenExpires = Date.now() + 24 * 60 * 60 * 1000; // 24 hours
+
     const agent = await Agent.create({
       name: name.trim(),
       email: email.toLowerCase().trim(),
@@ -55,13 +60,18 @@ export async function POST(request) {
       agencyName: agencyName.trim(),
       phone: phone.trim(),
       licenseNumber: body.licenseNumber?.trim() || null,
+      verificationToken,
+      verificationTokenExpires,
     });
 
-    // ── 6. Return success (never expose the hashed password) ─────────────────
+    // ── 6. Send verification email ───────────────────────────────────────────
+    await sendVerificationEmail(agent.email, verificationToken);
+
+    // ── 7. Return success (never expose the hashed password) ─────────────────
     return NextResponse.json(
       {
         success: true,
-        message: 'Account created successfully.',
+        message: 'Account created successfully. Please check your email to verify your account.',
         agent: {
           id: agent._id,
           name: agent.name,
