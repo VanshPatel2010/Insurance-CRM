@@ -30,26 +30,35 @@ export async function POST(req: NextRequest) {
     }
 
     const formData = await req.formData();
+    const text = formData.get('text') as string;
+    const image = formData.get('image') as string;
     const file = formData.get('pdf') as File;
 
-    if (!file) {
-      return NextResponse.json({ error: 'No PDF file provided' }, { status: 400 });
+    let result;
+
+    if (text || image) {
+      console.log('[extract-policy] Using pre-extracted data from client');
+      result = await extractPolicyData({ text, image });
+    } else {
+      if (!file) {
+        return NextResponse.json({ error: 'No PDF file or pre-extracted data provided' }, { status: 400 });
+      }
+
+      if (file.type !== 'application/pdf') {
+        return NextResponse.json({ error: 'File must be a PDF' }, { status: 400 });
+      }
+
+      if (file.size > 5 * 1024 * 1024) {
+        return NextResponse.json({ error: 'File size must be under 5MB' }, { status: 400 });
+      }
+
+      // Convert to Buffer — stays in memory, never persisted to disk
+      const arrayBuffer = await file.arrayBuffer();
+      const pdfBuffer = Buffer.from(arrayBuffer);
+
+      // Run multi-provider extraction with automatic fallback
+      result = await extractPolicyData(pdfBuffer);
     }
-
-    if (file.type !== 'application/pdf') {
-      return NextResponse.json({ error: 'File must be a PDF' }, { status: 400 });
-    }
-
-    if (file.size > 5 * 1024 * 1024) {
-      return NextResponse.json({ error: 'File size must be under 5MB' }, { status: 400 });
-    }
-
-    // Convert to Buffer — stays in memory, never persisted to disk
-    const arrayBuffer = await file.arrayBuffer();
-    const pdfBuffer = Buffer.from(arrayBuffer);
-
-    // Run multi-provider extraction with automatic fallback
-    const result = await extractPolicyData(pdfBuffer);
 
     // All providers failed → tell the client to switch to manual entry
     if (!result.success) {
@@ -68,7 +77,7 @@ export async function POST(req: NextRequest) {
     if (!hasUsefulExtractionData(result.data)) {
       console.warn('[extract-policy] Extraction succeeded but returned no usable data', {
         provider: result.provider,
-        fileName: file.name,
+        fileName: file?.name || 'pre-extracted-data',
       });
       return NextResponse.json(
         {
@@ -87,7 +96,7 @@ export async function POST(req: NextRequest) {
       success: true,
       data: result.data,
       provider: result.provider,
-      fileName: file.name,
+      fileName: file?.name || 'pre-extracted-data',
     });
   } catch (error) {
     console.error('PDF extraction error:', error);

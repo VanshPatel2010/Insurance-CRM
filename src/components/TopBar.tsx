@@ -2,7 +2,6 @@
 import { useState, useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
-import { useQueryClient } from "@tanstack/react-query";
 
 const pageTitles: Record<string, { title: string; subtitle: string }> = {
   "/dashboard": {
@@ -34,7 +33,6 @@ export default function TopBar() {
   const router = useRouter();
   const { data: session } = useSession();
   const { title, subtitle } = getPageMeta(pathname);
-  const queryClient = useQueryClient();
 
   const [dateStr, setDateStr] = useState<string>("");
 
@@ -51,7 +49,6 @@ export default function TopBar() {
   }, []);
 
   async function handleLogout() {
-    queryClient.clear();
     await signOut({ redirect: false });
     router.push("/login");
   }
@@ -68,10 +65,9 @@ export default function TopBar() {
 
   return (
     <header className="topbar">
-      <div
-        className="topbar-left"
-        style={{ display: "flex", alignItems: "center", gap: "12px" }}
-      >
+      <div className="topbar-left">
+        {/* Always render the button so server & client trees match.
+            CSS hides it on desktop via .mobile-menu-btn { display: none }. */}
         <button
           className="mobile-menu-btn"
           onClick={() => window.dispatchEvent(new Event("toggle-sidebar"))}
@@ -98,7 +94,7 @@ export default function TopBar() {
       </div>
 
       <div className="topbar-right">
-        <span className="topbar-date">📅 {dateStr}</span>
+        {dateStr && <span className="topbar-date">📅 {dateStr}</span>}
 
         {/* User badge */}
         {session?.user && (

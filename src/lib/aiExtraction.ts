@@ -160,7 +160,7 @@ async function extractFirstImageAsBase64(pdfBuffer: Buffer): Promise<string | nu
             const imgBuffer = Buffer.isBuffer(xobjData.data)
               ? xobjData.data
               : Buffer.from(xobjData.data);
-            
+
             const base64 = imgBuffer.toString('base64');
             console.log('[aiExtraction] Extracted image from PDF resources');
             await pdfDoc.destroy();
@@ -280,7 +280,7 @@ async function extractTextFromPdf(pdfBuffer: Buffer): Promise<string> {
       .replace(/\s+/g, ' ')
       .slice(0, 8000)
       .trim();
-      
+
   } catch (err) {
     console.error('[aiExtraction] pdfjs text extraction failed:', err);
     return '';
@@ -389,7 +389,6 @@ async function geminiExtractText(text: string): Promise<unknown> {
   if (!apiKey) {
     throw new Error('GEMINI_API_KEY not configured');
   }
-  throw new Error('Gemini API access currently disabled for testing. Please enable GEMINI_API_KEY and remove this line to use.');
   const cleanText = text.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '').trim();
   const model = 'gemini-3.1-flash-lite-preview'; // Ensure you're using the standard REST model name
 
@@ -423,7 +422,7 @@ async function geminiExtractText(text: string): Promise<unknown> {
   const json = await res.json();
   const raw = json?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
   if (!raw) throw new Error('Gemini returned empty response');
-  
+
   return parseJsonResponse(raw);
 }
 
@@ -435,7 +434,7 @@ async function geminiExtractImage(base64Image: string): Promise<unknown> {
   if (!apiKey) {
     throw new Error('GEMINI_API_KEY not configured');
   }
-  
+
   const model = 'gemini-1.5-flash';
 
   const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
@@ -473,26 +472,42 @@ async function geminiExtractImage(base64Image: string): Promise<unknown> {
   const json = await res.json();
   const raw = json?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
   if (!raw) throw new Error('Gemini returned empty response');
-  
+
   return parseJsonResponse(raw);
 }
 
 // ─── Main Controller ──────────────────────────────────────────────────────────
 
+export type PreExtractedData = {
+  text?: string;
+  image?: string;
+};
+
 /**
  * Hybrid Text-First extraction strategy
+ * Now supports pre-extracted text or images from the client to offload processing.
  */
-export async function extractPolicyData(pdfBuffer: Buffer): Promise<ExtractionResult> {
+export async function extractPolicyData(input: Buffer | PreExtractedData): Promise<ExtractionResult> {
   try {
-    console.log('[aiExtraction] Extracting text from PDF…');
-    const extractedText = await extractTextFromPdf(pdfBuffer);
+    let extractedText: string | undefined;
+    let base64Image: string | undefined | null;
+    let isDigitalPdf = false;
 
-    const isDigitalPdf = extractedText.length > 50;
-    console.log(
-      `[aiExtraction] PDF classified as ${isDigitalPdf ? 'digital' : 'scanned'} (text length: ${extractedText.length})`
-    );
+    if (Buffer.isBuffer(input)) {
+      console.log('[aiExtraction] Input is Buffer; extracting text from PDF…');
+      extractedText = await extractTextFromPdf(input);
+      isDigitalPdf = (extractedText?.length ?? 0) > 50;
+      console.log(
+        `[aiExtraction] PDF classified as ${isDigitalPdf ? 'digital' : 'scanned'} (text length: ${extractedText?.length})`
+      );
+    } else {
+      console.log('[aiExtraction] Input is pre-extracted data from client');
+      extractedText = input.text;
+      base64Image = input.image;
+      isDigitalPdf = !!extractedText && extractedText.length > 50;
+    }
 
-    if (isDigitalPdf) {
+    if (isDigitalPdf && extractedText) {
       console.log('[aiExtraction] Sending text to Gemini API…');
       try {
         const data = await geminiExtractText(extractedText);
@@ -511,8 +526,10 @@ export async function extractPolicyData(pdfBuffer: Buffer): Promise<ExtractionRe
         };
       }
     } else {
-      console.log('[aiExtraction] Extracting image from scanned PDF…');
-      const base64Image = await extractFirstImageAsBase64(pdfBuffer);
+      if (Buffer.isBuffer(input)) {
+        console.log('[aiExtraction] Extracting image from scanned PDF…');
+        base64Image = await extractFirstImageAsBase64(input);
+      }
 
       if (base64Image) {
         console.log('[aiExtraction] Sending image to Gemini API…');
@@ -534,8 +551,9 @@ export async function extractPolicyData(pdfBuffer: Buffer): Promise<ExtractionRe
         }
       } else {
         console.log('[aiExtraction] No image found; falling back to text extraction…');
+        const textToUse = extractedText || '';
         try {
-          const data = await geminiExtractText(extractedText);
+          const data = await geminiExtractText(textToUse);
           return {
             success: true,
             data,
@@ -543,7 +561,7 @@ export async function extractPolicyData(pdfBuffer: Buffer): Promise<ExtractionRe
           };
         } catch (geminiErr) {
           console.warn(`[aiExtraction] Gemini fallback text extraction failed: ${(geminiErr as Error).message}. Trying Groq...`);
-          const data = await groqExtractText(extractedText);
+          const data = await groqExtractText(textToUse);
           return {
             success: true,
             data,

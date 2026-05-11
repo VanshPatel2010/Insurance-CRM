@@ -44,6 +44,7 @@ import {
   AlertCircle,
   CheckCircle2,
 } from "lucide-react";
+import { extractFromPdfClient } from "@/lib/pdfClient";
 
 const typeOptions: {
   type: PolicyType;
@@ -716,8 +717,18 @@ export default function NewCustomerForm() {
     setExtractionConfidence(100);
 
     try {
+      // 1. Heavy Handling: Extract text/image locally in the browser
+      const clientResult = await extractFromPdfClient(file);
+      
+      // 2. Send only what's needed to the server
       const fd = new FormData();
+      if (clientResult.text) fd.append("text", clientResult.text);
+      if (clientResult.image) fd.append("image", clientResult.image);
+      
+      // We still append the PDF as a fallback, but the server will prioritize 
+      // the pre-extracted data if available.
       fd.append("pdf", file);
+
       const res = await fetch("/api/extract-policy", {
         method: "POST",
         body: fd,
@@ -738,8 +749,9 @@ export default function NewCustomerForm() {
 
       // Success — auto-fill
       autoFillForm(body.data as Record<string, unknown>);
-    } catch {
-      setExtractionError("Network error — check your connection and try again");
+    } catch (err: any) {
+      console.error("[Extraction Error]", err);
+      setExtractionError(err?.message || "Extraction failed — check your connection or file and try again");
       setSelectedFileName("");
       if (fileInputRef.current) fileInputRef.current.value = "";
     } finally {

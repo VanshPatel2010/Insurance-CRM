@@ -18,8 +18,10 @@ const navLinks = [
 export default function Sidebar() {
   const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    setMounted(true);
     const handleToggle = () => setIsOpen(prev => !prev);
     window.addEventListener('toggle-sidebar', handleToggle);
     return () => window.removeEventListener('toggle-sidebar', handleToggle);
@@ -30,12 +32,14 @@ export default function Sidebar() {
   }, [pathname]);
 
   return (
-    <>
-      <div 
-        className={`sidebar-overlay ${isOpen ? 'active' : ''}`} 
-        onClick={() => setIsOpen(false)} 
-      />
-      <aside className={`sidebar ${isOpen ? 'mobile-open' : ''}`}>
+    <aside className={`sidebar${isOpen ? ' mobile-open' : ''}`.trim()}>
+      {mounted && (
+        <div
+          className={`sidebar-overlay${isOpen ? ' active' : ''}`.trim()}
+          onClick={() => setIsOpen(false)}
+        />
+      )}
+
       <div className="sidebar-logo">
         <div className="sidebar-logo-icon">
           <Shield size={22} />
@@ -55,7 +59,7 @@ export default function Sidebar() {
             <Link
               key={href}
               href={href}
-              className={`nav-link ${isActive ? 'active' : ''}`}
+              className={`nav-link${isActive ? ' active' : ''}`.trim()}
             >
               <Icon size={16} className="nav-icon" />
               {label}
@@ -68,6 +72,5 @@ export default function Sidebar() {
         <p className="sidebar-footer-text">InsureCRM v1.0</p>
       </div>
     </aside>
-    </>
   );
 }

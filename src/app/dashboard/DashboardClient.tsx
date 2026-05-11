@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState, useCallback } from "react";
 import { formatCurrency, formatDate, daysUntilExpiry } from "@/lib/utils";
 import PolicyBadge from "@/components/PolicyBadge";
 import StatusBadge from "@/components/StatusBadge";
@@ -67,13 +67,22 @@ async function fetchDashboardStats() {
 }
 
 export default function DashboardClient({ initialData }: { initialData: any }) {
-  const queryClient = useQueryClient();
-  const { data, dataUpdatedAt, isFetching, refetch } = useQuery({
-    queryKey: ["dashboard-stats"],
-    queryFn: fetchDashboardStats,
-    initialData,
-    staleTime: Infinity,
-  });
+  const [data, setData] = useState(initialData);
+  const [isFetching, setIsFetching] = useState(false);
+  const [dataUpdatedAt, setDataUpdatedAt] = useState<number | null>(null);
+
+  const refetch = useCallback(async () => {
+    setIsFetching(true);
+    try {
+      const fresh = await fetchDashboardStats();
+      setData(fresh);
+      setDataUpdatedAt(Date.now());
+    } catch (err) {
+      console.error("[DashboardClient] Refresh failed:", err);
+    } finally {
+      setIsFetching(false);
+    }
+  }, []);
 
   const { total, typeCountMap, expiring, totalPremium, recent } = data;
 

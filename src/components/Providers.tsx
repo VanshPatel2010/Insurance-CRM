@@ -1,23 +1,40 @@
 "use client";
 import { SessionProvider } from "next-auth/react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { isServer, QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useState } from "react";
 
+function makeQueryClient() {
+  return new QueryClient({
+    defaultOptions: {
+      queries: {
+        staleTime: Infinity,            // Never automatically refetch
+        gcTime: 60 * 60 * 1000,        // Cache stays in memory for 1 hour
+        refetchOnWindowFocus: false,    // Don't refetch when switching tabs
+        refetchOnReconnect: false,      // Don't refetch on connection restore
+        retry: 1,                       // Retry failed requests once
+      },
+    },
+  });
+}
+
+// Browser: reuse the same QueryClient across re-renders and Suspense retries.
+// Server: always create a fresh one per request (never share between requests).
+let browserQueryClient: QueryClient | undefined = undefined;
+
+function getQueryClient() {
+  if (isServer) {
+    return makeQueryClient();
+  }
+  if (!browserQueryClient) {
+    browserQueryClient = makeQueryClient();
+  }
+  return browserQueryClient;
+}
+
 export default function Providers({ children }: { children: React.ReactNode }) {
-  const [queryClient] = useState(
-    () =>
-      new QueryClient({
-        defaultOptions: {
-          queries: {
-            staleTime: Infinity, // Never automatically refetch
-            gcTime: 60 * 60 * 1000, // Cache stays in memory for 1 Hour
-            refetchOnWindowFocus: false, // Don't refetch when switching tabs
-            refetchOnReconnect: false, // Don't refetch on connection restore
-            retry: 1, // Retry failed requests once
-          },
-        },
-      }),
-  );
+  // NOTE: Avoid useState here — if React suspends before it initialises,
+  // a second call would create a different QueryClient and lose context.
+  const queryClient = getQueryClient();
 
   return (
     <SessionProvider>
