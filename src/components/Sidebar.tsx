@@ -32,13 +32,12 @@ export default function Sidebar() {
   }, [pathname]);
 
   return (
-    <aside className={`sidebar${isOpen ? ' mobile-open' : ''}`.trim()}>
-      {mounted && (
-        <div
-          className={`sidebar-overlay${isOpen ? ' active' : ''}`.trim()}
-          onClick={() => setIsOpen(false)}
-        />
-      )}
+    <>
+      <div
+        className={`sidebar-overlay${isOpen ? ' active' : ''}`.trim()}
+        onClick={() => setIsOpen(false)}
+      />
+      <aside className={`sidebar${isOpen ? ' mobile-open' : ''}`.trim()}>
 
       <div className="sidebar-logo">
         <div className="sidebar-logo-icon">
@@ -59,6 +58,7 @@ export default function Sidebar() {
             <Link
               key={href}
               href={href}
+              onClick={() => setIsOpen(false)}
               className={`nav-link${isActive ? ' active' : ''}`.trim()}
             >
               <Icon size={16} className="nav-icon" />
@@ -71,6 +71,7 @@ export default function Sidebar() {
       <div className="sidebar-footer">
         <p className="sidebar-footer-text">InsureCRM v1.0</p>
       </div>
-    </aside>
+      </aside>
+    </>
   );
 }
