@@ -42,6 +42,15 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className={inter.variable}>
+      <head>
+        {/* Preload the local PDF worker to eliminate network lag during extraction */}
+        <link 
+          rel="preload" 
+          href="/pdf.worker.min.mjs" 
+          as="script" 
+          type="text/javascript"
+        />
+      </head>
       {/*
         `inter.className` applies the loaded font-family directly to <body>.
         This is the Next.js recommended approach — no @import in CSS required.

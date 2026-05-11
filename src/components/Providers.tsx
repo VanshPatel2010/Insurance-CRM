@@ -1,7 +1,7 @@
 "use client";
 import { SessionProvider } from "next-auth/react";
 import { isServer, QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 function makeQueryClient() {
   return new QueryClient({
@@ -35,6 +35,21 @@ export default function Providers({ children }: { children: React.ReactNode }) {
   // NOTE: Avoid useState here — if React suspends before it initialises,
   // a second call would create a different QueryClient and lose context.
   const queryClient = getQueryClient();
+
+  useEffect(() => {
+    // Pre-initialize the worker as soon as the user hits the Dashboard
+    const warmUpWorker = async () => {
+      try {
+        const pdfjs = await import('pdfjs-dist');
+        pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs';
+        console.log("[Providers] PDF Worker pre-loaded and warmed up");
+      } catch (e) {
+        console.error("[Providers] PDF Worker warm-up failed", e);
+      }
+    };
+
+    warmUpWorker();
+  }, []);
 
   return (
     <SessionProvider>
