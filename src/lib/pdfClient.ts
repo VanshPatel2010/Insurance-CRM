@@ -2,6 +2,9 @@
 // It requires browser APIs (DOMMatrix, canvas, etc.) that crash Node.js during SSR.
 // Instead, we dynamically import it only when called from the browser.
 
+// Polyfill Promise.withResolvers (ES2024) for older browsers — required by pdfjs-dist v5+
+import './polyfills';
+
 export interface ClientExtractionResult {
   text?: string;
   image?: string; // base64

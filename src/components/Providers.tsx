@@ -1,4 +1,5 @@
 "use client";
+import "@/lib/polyfills"; // Must be first — provides Promise.withResolvers for older browsers
 import { SessionProvider } from "next-auth/react";
 import { isServer, QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
