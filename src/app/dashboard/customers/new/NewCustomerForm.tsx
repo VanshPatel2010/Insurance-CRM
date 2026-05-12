@@ -314,6 +314,26 @@ export default function NewCustomerForm() {
   const [extractionConfidence, setExtractionConfidence] = useState(100);
   const [isDragging, setIsDragging] = useState(false);
   const [isExtracting, setIsExtracting] = useState(false);
+  const [extractionTimeMs, setExtractionTimeMs] = useState(0);
+
+  useEffect(() => {
+    if (!isExtracting) {
+      setExtractionTimeMs(0);
+      return;
+    }
+    const startTime = Date.now();
+    const interval = setInterval(() => {
+      setExtractionTimeMs(Date.now() - startTime);
+    }, 100);
+    return () => clearInterval(interval);
+  }, [isExtracting]);
+
+  const getExtractionMessage = () => {
+    if (extractionTimeMs < 5000) return "Reading Document...";
+    if (extractionTimeMs < 15000) return "Extracting Policy Details...";
+    if (extractionTimeMs < 30000) return "AI Analysis in Progress...";
+    return "Almost done!";
+  };
   const [fileError, setFileError] = useState("");
   const [extractionError, setExtractionError] = useState("");
   const [selectedFileName, setSelectedFileName] = useState("");
@@ -1223,7 +1243,7 @@ export default function NewCustomerForm() {
                       marginBottom: 4,
                     }}
                   >
-                    Extracting policy details…
+                    {getExtractionMessage()}
                   </div>
                   <div style={{ fontSize: 12, color: "var(--text-muted)" }}>
                     {selectedFileName}

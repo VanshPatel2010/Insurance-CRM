@@ -24,7 +24,7 @@ export async function extractFromPdfClient(file: File): Promise<ClientExtraction
   const pdf = await loadingTask.promise;
 
   let extractedText = '';
-  const numPages = Math.min(pdf.numPages, 5); // Extract from first 5 pages
+  const numPages = Math.min(pdf.numPages, 3); // Extract from first 3 pages
 
   for (let i = 1; i <= numPages; i++) {
     const page = await pdf.getPage(i);
