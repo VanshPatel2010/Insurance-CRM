@@ -389,6 +389,7 @@ async function geminiExtractText(text: string): Promise<unknown> {
   if (!apiKey) {
     throw new Error('GEMINI_API_KEY not configured');
   }
+  
   const cleanText = text.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '').trim();
   const model = 'gemini-3.1-flash-lite-preview'; // Ensure you're using the standard REST model name
 
