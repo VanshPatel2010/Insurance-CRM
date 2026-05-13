@@ -717,6 +717,21 @@ export default function NewCustomerForm() {
     return false;
   }
 
+  async function sendExtractionRequest(
+    file: File,
+    clientResult?: { text?: string; image?: string },
+  ) {
+    const fd = new FormData();
+    if (clientResult?.text) fd.append("text", clientResult.text);
+    if (clientResult?.image) fd.append("image", clientResult.image);
+    fd.append("pdf", file);
+
+    return fetch("/api/extract-policy", {
+      method: "POST",
+      body: fd,
+    });
+  }
+
   // ── Single-file extraction ────────────────────────────────────────────────
   async function handleFileSelected(file: File) {
     setFileError("");
@@ -737,22 +752,36 @@ export default function NewCustomerForm() {
     setExtractionConfidence(100);
 
     try {
-      // 1. Heavy Handling: Extract text/image locally in the browser
-      const clientResult = await extractFromPdfClient(file);
-      
-      // 2. Send only what's needed to the server
-      const fd = new FormData();
-      if (clientResult.text) fd.append("text", clientResult.text);
-      if (clientResult.image) fd.append("image", clientResult.image);
-      
-      // We still append the PDF as a fallback, but the server will prioritize 
-      // the pre-extracted data if available.
-      fd.append("pdf", file);
+      let clientResult:
+        | {
+            text?: string;
+            image?: string;
+          }
+        | undefined;
 
-      const res = await fetch("/api/extract-policy", {
-        method: "POST",
-        body: fd,
-      });
+      try {
+        // Older Chrome can get stuck in client-side PDF parsing without throwing.
+        // If that happens, fall back to uploading the raw PDF to the server.
+        clientResult = await Promise.race([
+          extractFromPdfClient(file),
+          new Promise<undefined>((resolve) => {
+            window.setTimeout(() => resolve(undefined), 8000);
+          }),
+        ]);
+
+        if (!clientResult) {
+          console.warn(
+            "[Extraction] Client PDF parsing timed out, falling back to server extraction",
+          );
+        }
+      } catch (clientErr) {
+        console.warn(
+          "[Extraction] Client PDF parsing failed, falling back to server extraction",
+          clientErr,
+        );
+      }
+
+      const res = await sendExtractionRequest(file, clientResult);
       const body = await res.json();
 
       if (!res.ok || !isExtractionDataValid(body?.data)) {

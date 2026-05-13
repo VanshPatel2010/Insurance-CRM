@@ -12,17 +12,31 @@ export interface ClientExtractionResult {
   fileName: string;
 }
 
+async function readFileAsArrayBuffer(file: File): Promise<ArrayBuffer> {
+  if (typeof file.arrayBuffer === "function") {
+    return file.arrayBuffer();
+  }
+
+  return new Promise<ArrayBuffer>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as ArrayBuffer);
+    reader.onerror = () => reject(reader.error || new Error("Failed to read PDF file"));
+    reader.readAsArrayBuffer(file);
+  });
+}
+
 /**
  * Extracts text or an image from a PDF file in the browser.
  * This offloads the heavy parsing from the server to the client.
  * Uses dynamic import to avoid loading pdfjs-dist during SSR.
  */
 export async function extractFromPdfClient(file: File): Promise<ClientExtractionResult> {
-  // Dynamic import — only runs in the browser, never on the server
-  const pdfjsLib = await import('pdfjs-dist');
+  // Dynamic import — only runs in the browser, never on the server.
+  // Use the legacy build for broader browser compatibility.
+  const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf.mjs');
   pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs';
 
-  const arrayBuffer = await file.arrayBuffer();
+  const arrayBuffer = await readFileAsArrayBuffer(file);
   const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
   const pdf = await loadingTask.promise;
 
