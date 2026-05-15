@@ -3,6 +3,8 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/authOptions";
 import { connectDB } from "@/lib/mongodb";
 import Customer from "@/models/Customer";
+import FamilyGroup from "@/models/FamilyGroup";
+import ReferralMember from "@/models/ReferralMember";
 import { customerUpdateSchema } from "@/lib/validations";
 
 type Params = { params: Promise<{ id: string }> };
@@ -20,7 +22,10 @@ export async function GET(_req: NextRequest, { params }: Params) {
   const customer = await Customer.findOne({
     _id: id,
     agentId: session.user.id,
-  }).lean();
+  })
+    .populate("familyGroupId", "familyName primaryPolicyholderName")
+    .populate("referredById", "name phone email")
+    .lean();
 
   if (!customer) {
     return NextResponse.json({ error: "Customer not found" }, { status: 404 });
@@ -77,6 +82,13 @@ export async function PUT(req: NextRequest, { params }: Params) {
     sumInsured,
     startDate,
     endDate,
+    familyGroupId,
+    familyMemberName,
+    familyRelationship,
+    referredById,
+    commissionType,
+    commissionValue,
+    commissionStatus,
     /* eslint-disable @typescript-eslint/no-unused-vars */
     _id: _i,
     agentId: _a,
@@ -101,6 +113,26 @@ export async function PUT(req: NextRequest, { params }: Params) {
     }
   }
 
+  if (familyGroupId) {
+    const family = await FamilyGroup.findOne({
+      _id: familyGroupId,
+      agentId: session.user.id,
+    });
+    if (!family) {
+      return NextResponse.json({ error: "Family group not found" }, { status: 404 });
+    }
+  }
+
+  if (referredById) {
+    const referral = await ReferralMember.findOne({
+      _id: referredById,
+      agentId: session.user.id,
+    });
+    if (!referral) {
+      return NextResponse.json({ error: "Referral member not found" }, { status: 404 });
+    }
+  }
+
   Object.assign(customer, {
     ...(type && { type }),
     ...(customerName && { customerName }),
@@ -112,6 +144,13 @@ export async function PUT(req: NextRequest, { params }: Params) {
     sumInsured: sumInsured ?? customer.sumInsured ?? "",
     ...(startDate && { startDate }),
     ...(endDate && { endDate }),
+    familyGroupId: familyGroupId || null,
+    familyMemberName: familyMemberName ?? customer.familyMemberName ?? "",
+    familyRelationship: familyRelationship ?? customer.familyRelationship ?? "",
+    referredById: referredById || null,
+    commissionType: referredById ? commissionType || customer.commissionType || "percentage" : "",
+    commissionValue: referredById ? commissionValue ?? customer.commissionValue ?? "" : "",
+    commissionStatus: referredById ? commissionStatus || customer.commissionStatus || "Pending" : "Pending",
     details: { ...customer.details, ...(submittedDetails ?? {}), ...rest },
     updatedAt: new Date(),
   });

@@ -30,7 +30,8 @@ export interface CustomerDoc {
     | 'life'
     | 'personal-accident'
     | 'marine'
-    | 'workman-compensation';
+    | 'workman-compensation'
+    | 'travel';
   customerName: string;
   phone: string;
   email: string;
@@ -40,6 +41,13 @@ export interface CustomerDoc {
   sumInsured: string;
   startDate: string;
   endDate: string;
+  familyGroupId?: string | { _id: string; familyName: string; primaryPolicyholderName: string } | null;
+  familyMemberName?: string;
+  familyRelationship?: string;
+  referredById?: string | { _id: string; name: string; phone?: string; email?: string } | null;
+  commissionType?: 'percentage' | 'flat' | '';
+  commissionValue?: string;
+  commissionStatus?: 'Pending' | 'Paid';
   details: Record<string, unknown>;
   createdAt: string;
   updatedAt: string;
@@ -53,6 +61,30 @@ export interface DashboardStats {
   expiring: CustomerDoc[];
   totalPremium: number;
   recent: CustomerDoc[];
+}
+
+export interface FamilyGroupDoc {
+  _id: string;
+  familyName: string;
+  primaryPolicyholderName: string;
+  primaryPhone?: string;
+  notes?: string;
+  policyCount?: number;
+  totalPremium?: number;
+  renewalAlerts?: number;
+}
+
+export interface ReferralMemberDoc {
+  _id: string;
+  name: string;
+  phone?: string;
+  email?: string;
+  address?: string;
+  notes?: string;
+  totalPolicies?: number;
+  totalCommission?: number;
+  pendingCommission?: number;
+  paidCommission?: number;
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -143,6 +175,102 @@ export async function getDashboardStats(): Promise<DashboardStats> {
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     throw new Error(err.error ?? 'Failed to fetch dashboard stats');
+  }
+  return res.json();
+}
+
+export async function getFamilyGroups(): Promise<{ familyGroups: FamilyGroupDoc[] }> {
+  const res = await fetch('/api/family-groups');
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error ?? 'Failed to fetch family groups');
+  }
+  return res.json();
+}
+
+export async function createFamilyGroup(
+  data: Record<string, unknown>
+): Promise<FamilyGroupDoc> {
+  const res = await fetch('/api/family-groups', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error ?? 'Failed to create family group');
+  }
+  return res.json();
+}
+
+export async function getFamilyGroupDetail(
+  id: string
+): Promise<{ familyGroup: FamilyGroupDoc; policies: CustomerDoc[] }> {
+  const res = await fetch(`/api/family-groups/${id}`);
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error ?? 'Failed to fetch family group');
+  }
+  return res.json();
+}
+
+export async function getReferrals(): Promise<{ referrals: ReferralMemberDoc[] }> {
+  const res = await fetch('/api/referrals');
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error ?? 'Failed to fetch referrals');
+  }
+  return res.json();
+}
+
+export async function createReferral(
+  data: Record<string, unknown>
+): Promise<ReferralMemberDoc> {
+  const res = await fetch('/api/referrals', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error ?? 'Failed to create referral member');
+  }
+  return res.json();
+}
+
+export async function getReferralDetail(
+  id: string
+): Promise<{
+  referral: ReferralMemberDoc;
+  policies: Array<CustomerDoc & { commissionAmount: number }>;
+  summary: {
+    totalReferred: number;
+    totalCommission: number;
+    pendingCommission: number;
+    paidCommission: number;
+  };
+}> {
+  const res = await fetch(`/api/referrals/${id}`);
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error ?? 'Failed to fetch referral detail');
+  }
+  return res.json();
+}
+
+export async function updateReferralCommissions(
+  referralId: string,
+  policyIds: string[],
+  status: 'Pending' | 'Paid',
+): Promise<{ updated: number }> {
+  const res = await fetch(`/api/referrals/${referralId}/commissions`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ policyIds, status }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error ?? 'Failed to update commission status');
   }
   return res.json();
 }

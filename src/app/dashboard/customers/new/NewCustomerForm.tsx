@@ -6,6 +6,11 @@ import {
   updateCustomer,
   getCustomer,
   flattenCustomer,
+  getFamilyGroups,
+  createFamilyGroup,
+  getReferrals,
+  FamilyGroupDoc,
+  ReferralMemberDoc,
 } from "@/lib/storage";
 import {
   COUNTRY_CALLING_CODES,
@@ -180,7 +185,7 @@ const emptyMedical = () => ({
   preExistingConditions: "",
   smoker: "" as "" | "Yes" | "No",
   numberOfMembers: "1",
-  members: [{ name: "", age: "" }] as MemberInfo[],
+  members: [{ name: "", dateOfBirth: "", age: "" }] as MemberInfo[],
   cashlessHospitalNetwork: "",
 });
 const emptyFire = () => ({
@@ -250,6 +255,129 @@ const emptyTravel = () => ({
     | "All-Risk",
 });
 
+function asCleanString(value: unknown) {
+  if (value == null) return "";
+  return String(value).trim();
+}
+
+function normalizeDateValue(value: unknown) {
+  const raw = asCleanString(value);
+  if (!raw) return "";
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
+
+  const dmy = raw.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})$/);
+  if (!dmy) return "";
+
+  const day = dmy[1].padStart(2, "0");
+  const month = dmy[2].padStart(2, "0");
+  const year = dmy[3].length === 2 ? `20${dmy[3]}` : dmy[3];
+  const parsedDate = new Date(`${year}-${month}-${day}`);
+  if (Number.isNaN(parsedDate.getTime())) return "";
+  if (parsedDate > new Date()) parsedDate.setFullYear(parsedDate.getFullYear() - 100);
+  return parsedDate.toISOString().slice(0, 10);
+}
+
+function normalizeAgeValue(value: unknown) {
+  const raw = asCleanString(value);
+  const match = raw.match(/\b(\d{1,3})\b/);
+  return match ? match[1] : "";
+}
+
+function arrayFromUnknown(value: unknown): unknown[] {
+  if (Array.isArray(value)) return value;
+  if (typeof value === "string") {
+    return value
+      .split(/[,;\n]/)
+      .map((part) => part.trim())
+      .filter(Boolean);
+  }
+  return [];
+}
+
+function firstArray(details: Record<string, unknown>, keys: string[]) {
+  for (const key of keys) {
+    const values = arrayFromUnknown(details[key]);
+    if (values.length > 0) return values;
+  }
+  return [];
+}
+
+function normalizeMedicalMembers(details: Record<string, unknown>) {
+  const rawMembers = arrayFromUnknown(details.members);
+  const memberNames = firstArray(details, ["memberNames", "namesOfMembers"]);
+  const memberAges = firstArray(details, ["memberAges", "ages", "agesOfMembers"]);
+  const memberDobs = firstArray(details, [
+    "memberDateOfBirths",
+    "dateOfBirths",
+    "datesOfBirth",
+    "dobs",
+    "birthDates",
+  ]);
+  const memberRelationships = firstArray(details, [
+    "memberRelationships",
+    "relationships",
+    "relationshipWithProposer",
+  ]);
+  const memberGenders = firstArray(details, ["memberGenders", "genders"]);
+
+  const requestedCount = Number(
+    details.membersCount ?? details.numberOfMembers ?? rawMembers.length,
+  );
+  const count = Math.min(
+    10,
+    Math.max(
+      1,
+      Number.isFinite(requestedCount) && requestedCount > 0 ? requestedCount : 0,
+      rawMembers.length,
+      memberNames.length,
+      memberAges.length,
+      memberDobs.length,
+    ),
+  );
+
+  return Array.from({ length: count }, (_, i): MemberInfo => {
+    const rawMember = rawMembers[i];
+    const member =
+      rawMember && typeof rawMember === "object"
+        ? (rawMember as Record<string, unknown>)
+        : {};
+    const dateOfBirth = normalizeDateValue(
+      member.dateOfBirth ?? member.dob ?? member.birthDate ?? memberDobs[i],
+    );
+    const age =
+      normalizeAgeValue(member.age ?? memberAges[i]) ||
+      (dateOfBirth ? String(calculateAge(dateOfBirth)) : "");
+
+    return {
+      name: asCleanString(member.name ?? rawMember ?? memberNames[i]),
+      age,
+      dateOfBirth,
+      relationship: asCleanString(member.relationship ?? memberRelationships[i]),
+      gender: asCleanString(member.gender ?? memberGenders[i]),
+    };
+  });
+}
+
+function pickPrimaryMedicalMember(members: MemberInfo[], customerName: string) {
+  const normalize = (value: string) =>
+    value.toLowerCase().replace(/[^a-z]/g, "");
+  const customerTokens = customerName
+    .toLowerCase()
+    .split(/\s+/)
+    .filter((token) => token.length > 2);
+
+  return (
+    members.find((member) =>
+      /self|proposer|primary|insured/i.test(member.relationship ?? ""),
+    ) ||
+    members.find((member) =>
+      customerTokens.some((token) => normalize(member.name).includes(token)),
+    ) ||
+    members[0]
+  );
+}
+
 function parseStoredPhone(value: unknown) {
   const cleanedPhone = String(value ?? "").replace(/\D/g, "");
 
@@ -304,6 +432,23 @@ export default function NewCustomerForm() {
     emptyWorkmanCompensation(),
   );
   const [travel, setTravel] = useState(emptyTravel());
+  const [familyGroups, setFamilyGroups] = useState<FamilyGroupDoc[]>([]);
+  const [referrals, setReferrals] = useState<ReferralMemberDoc[]>([]);
+  const [family, setFamily] = useState({
+    mode: "none" as "none" | "existing" | "new",
+    familyGroupId: "",
+    newFamilyName: "",
+    primaryPolicyholderName: "",
+    primaryPhone: "",
+    memberName: "",
+    relationship: "",
+  });
+  const [referral, setReferral] = useState({
+    referredById: "",
+    commissionType: "percentage" as "percentage" | "flat",
+    commissionValue: "",
+    commissionStatus: "Pending" as "Pending" | "Paid",
+  });
 
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
@@ -339,6 +484,18 @@ export default function NewCustomerForm() {
   const [selectedFileName, setSelectedFileName] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  useEffect(() => {
+    Promise.all([getFamilyGroups(), getReferrals()])
+      .then(([familyData, referralData]) => {
+        setFamilyGroups(familyData.familyGroups);
+        setReferrals(referralData.referrals);
+      })
+      .catch((err) => {
+        // eslint-disable-next-line no-console
+        console.error("[Load form metadata]", err);
+      });
+  }, []);
+
   // ── Load existing customer for edit mode ──────────────────────────────────
   useEffect(() => {
     if (!editId) {
@@ -363,6 +520,41 @@ export default function NewCustomerForm() {
           startDate: String(p.startDate ?? ""),
           endDate: String(p.endDate ?? ""),
         });
+        const familyGroupValue = p.familyGroupId as
+          | string
+          | { _id?: string }
+          | null
+          | undefined;
+        const familyGroupId =
+          typeof familyGroupValue === "object"
+            ? String(familyGroupValue?._id ?? "")
+            : String(familyGroupValue ?? "");
+        setFamily({
+          mode: familyGroupId ? "existing" : "none",
+          familyGroupId,
+          newFamilyName: "",
+          primaryPolicyholderName: String(p.customerName ?? ""),
+          primaryPhone: String(p.phone ?? ""),
+          memberName: String(p.familyMemberName ?? p.customerName ?? ""),
+          relationship: String(p.familyRelationship ?? ""),
+        });
+        const referralValue = p.referredById as
+          | string
+          | { _id?: string }
+          | null
+          | undefined;
+        const referredById =
+          typeof referralValue === "object"
+            ? String(referralValue?._id ?? "")
+            : String(referralValue ?? "");
+        setReferral({
+          referredById,
+          commissionType:
+            p.commissionType === "flat" ? "flat" : "percentage",
+          commissionValue: String(p.commissionValue ?? ""),
+          commissionStatus:
+            p.commissionStatus === "Paid" ? "Paid" : "Pending",
+        });
         const d = (p.details ?? {}) as Record<string, unknown>;
         if (p.type === "motor") {
           setMotor({
@@ -377,15 +569,16 @@ export default function NewCustomerForm() {
             addOns: String(d.addOns ?? ""),
           } as unknown as Omit<MotorPolicy, keyof Policy>);
         } else if (p.type === "medical") {
+          const members = normalizeMedicalMembers(d);
           setMedical({
-            dateOfBirth: String(d.dateOfBirth ?? ""),
-            age: String(d.age ?? ""),
+            dateOfBirth: normalizeDateValue(d.dateOfBirth),
+            age: normalizeAgeValue(d.age),
             gender: (d.gender as MedicalPolicy["gender"]) ?? "",
             bloodGroup: String(d.bloodGroup ?? ""),
             preExistingConditions: String(d.preExistingConditions ?? ""),
             smoker: (d.smoker as MedicalPolicy["smoker"]) ?? "",
-            numberOfMembers: String(d.numberOfMembers ?? "1"),
-            members: (d.members as MemberInfo[]) ?? [{ name: "", age: "" }],
+            numberOfMembers: String(d.numberOfMembers ?? members.length),
+            members,
             cashlessHospitalNetwork: String(d.cashlessHospitalNetwork ?? ""),
           });
         } else if (p.type === "fire") {
@@ -536,25 +729,21 @@ export default function NewCustomerForm() {
           : String(d.addOns ?? ""),
       } as unknown as Omit<MotorPolicy, keyof Policy>);
     } else if (type === "medical") {
-      const dob = String(d.dateOfBirth ?? "");
-      const memberNames = Array.isArray(d.memberNames)
-        ? (d.memberNames as string[])
-        : [];
-      const count =
-        d.membersCount != null
-          ? Number(d.membersCount)
-          : Math.max(1, memberNames.length);
-      const members: MemberInfo[] = Array.from({ length: count }, (_, i) => ({
-        name: memberNames[i] ?? "",
-        age: "",
-      }));
+      const members = normalizeMedicalMembers(d);
+      const primaryMember = pickPrimaryMedicalMember(
+        members,
+        String(data.customerName ?? ""),
+      );
+      const dob =
+        normalizeDateValue(primaryMember?.dateOfBirth) ||
+        normalizeDateValue(d.dateOfBirth);
+      const age =
+        normalizeAgeValue(primaryMember?.age) ||
+        (dob ? String(calculateAge(dob)) : "") ||
+        normalizeAgeValue(d.age);
       setMedical({
         dateOfBirth: dob,
-        age: dob
-          ? String(calculateAge(dob))
-          : d.age != null
-            ? String(d.age)
-            : "",
+        age,
         gender: String(d.gender ?? "") as MedicalPolicy["gender"],
         bloodGroup: String(d.bloodGroup ?? ""),
         preExistingConditions: String(d.preExistingConditions ?? ""),
@@ -564,7 +753,7 @@ export default function NewCustomerForm() {
             : d.smoker === false
               ? "No"
               : ("" as MedicalPolicy["smoker"]),
-        numberOfMembers: String(count),
+        numberOfMembers: String(members.length),
         members,
         cashlessHospitalNetwork: String(d.cashlessNetwork ?? ""),
       });
@@ -855,6 +1044,18 @@ export default function NewCustomerForm() {
       e.premiumAmount = "Enter a valid amount";
     if (!base.startDate) e.startDate = "Required";
     if (!base.endDate) e.endDate = "Required";
+    if (family.mode === "existing" && !family.familyGroupId) {
+      e.familyGroupId = "Required";
+    }
+    if (family.mode === "new" && !family.newFamilyName.trim()) {
+      e.newFamilyName = "Required";
+    }
+    if (family.mode === "new" && !family.primaryPolicyholderName.trim()) {
+      e.primaryPolicyholderName = "Required";
+    }
+    if (referral.referredById && !referral.commissionValue.trim()) {
+      e.commissionValue = "Required";
+    }
     if (base.startDate && base.endDate && base.endDate <= base.startDate)
       e.endDate = "End date must be after start date";
     if (selectedType === "motor") {
@@ -927,28 +1128,51 @@ export default function NewCustomerForm() {
       details = { ...workmanCompensation };
     else if (selectedType === "travel") details = { ...travel };
 
+    let familyGroupId = family.mode === "existing" ? family.familyGroupId : "";
     const selectedCountry =
       COUNTRY_CALLING_CODES.find(
         (country) => country.iso2 === base.phoneCountryIso2,
       ) ?? COUNTRY_CALLING_CODES[0];
-    const payload: Record<string, unknown> = {
-      ...base,
-      phone: `${selectedCountry.dialCode}${base.phone}`,
-      type: selectedType,
-      details,
-    };
-    delete payload.phoneCountryIso2;
+    const formattedPhone = `${selectedCountry.dialCode}${base.phone}`;
 
     try {
+      if (family.mode === "new") {
+        const createdFamily = await createFamilyGroup({
+          familyName: family.newFamilyName,
+          primaryPolicyholderName: family.primaryPolicyholderName,
+          primaryPhone: family.primaryPhone || formattedPhone,
+        });
+        familyGroupId = createdFamily._id;
+      }
+
+      const payload: Record<string, unknown> = {
+        ...base,
+        phone: formattedPhone,
+        type: selectedType,
+        familyGroupId: familyGroupId || "",
+        familyMemberName: family.memberName || base.customerName,
+        familyRelationship: family.relationship,
+        referredById: referral.referredById,
+        commissionType: referral.referredById ? referral.commissionType : "",
+        commissionValue: referral.referredById ? referral.commissionValue : "",
+        commissionStatus: referral.commissionStatus,
+        details,
+      };
+      delete payload.phoneCountryIso2;
+
       if (editId) {
         await updateCustomer(editId, payload);
         queryClient.invalidateQueries({ queryKey: ["customers"] });
         queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
+        queryClient.invalidateQueries({ queryKey: ["family-groups"] });
+        queryClient.invalidateQueries({ queryKey: ["referrals"] });
         router.push(`/dashboard/customers/${editId}`);
       } else {
         const created = await saveCustomer(payload);
         queryClient.invalidateQueries({ queryKey: ["customers"] });
         queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
+        queryClient.invalidateQueries({ queryKey: ["family-groups"] });
+        queryClient.invalidateQueries({ queryKey: ["referrals"] });
         router.push(`/dashboard/customers/${created._id}`);
       }
     } catch (err: unknown) {
@@ -981,7 +1205,7 @@ export default function NewCustomerForm() {
     const n = Math.max(1, parseInt(count) || 1);
     setMedical((m) => {
       const members = [...m.members];
-      while (members.length < n) members.push({ name: "", age: "" });
+      while (members.length < n) members.push({ name: "", dateOfBirth: "", age: "" });
       while (members.length > n) members.pop();
       return { ...m, numberOfMembers: String(n), members };
     });
@@ -1782,6 +2006,24 @@ export default function NewCustomerForm() {
                       onChange={(e) => {
                         const updated = [...medical.members];
                         updated[i] = { ...updated[i], name: e.target.value };
+                        setMedical((x) => ({ ...x, members: updated }));
+                      }}
+                    />
+                    <input
+                      className="form-control"
+                      type="date"
+                      aria-label={`Member ${i + 1} date of birth`}
+                      value={mem.dateOfBirth || ""}
+                      onChange={(e) => {
+                        const dateOfBirth = e.target.value;
+                        const updated = [...medical.members];
+                        updated[i] = {
+                          ...updated[i],
+                          dateOfBirth,
+                          age: dateOfBirth
+                            ? String(calculateAge(dateOfBirth))
+                            : updated[i].age,
+                        };
                         setMedical((x) => ({ ...x, members: updated }));
                       }}
                     />
@@ -2783,6 +3025,241 @@ export default function NewCustomerForm() {
                   onChange={upBase("endDate")}
                 />
               </Field>
+            </div>
+          </div>
+
+          {/* ── Family Grouping ─────────────────────────────────────── */}
+          <div className="form-section">
+            <div className="form-section-title">Family Group</div>
+            <div className="form-grid">
+              <Field label="Family Assignment" name="familyMode">
+                <select
+                  id="familyMode"
+                  className="form-control"
+                  value={family.mode}
+                  onChange={(e) =>
+                    setFamily((f) => ({
+                      ...f,
+                      mode: e.target.value as typeof family.mode,
+                    }))
+                  }
+                >
+                  <option value="none">No family group</option>
+                  <option value="existing">Assign to existing family</option>
+                  <option value="new">Create new family group</option>
+                </select>
+              </Field>
+
+              {family.mode === "existing" && (
+                <Field
+                  label="Select Family"
+                  name="familyGroupId"
+                  required
+                  error={errors.familyGroupId}
+                >
+                  <select
+                    id="familyGroupId"
+                    className={`form-control ${errors.familyGroupId ? "error" : ""}`}
+                    value={family.familyGroupId}
+                    onChange={(e) =>
+                      setFamily((f) => ({ ...f, familyGroupId: e.target.value }))
+                    }
+                  >
+                    <option value="">Choose family</option>
+                    {familyGroups.map((group) => (
+                      <option key={group._id} value={group._id}>
+                        {group.familyName} ({group.primaryPolicyholderName})
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+              )}
+
+              {family.mode === "new" && (
+                <>
+                  <Field
+                    label="Family Name"
+                    name="newFamilyName"
+                    required
+                    error={errors.newFamilyName}
+                  >
+                    <input
+                      id="newFamilyName"
+                      className={`form-control ${errors.newFamilyName ? "error" : ""}`}
+                      value={family.newFamilyName}
+                      onChange={(e) =>
+                        setFamily((f) => ({
+                          ...f,
+                          newFamilyName: e.target.value,
+                        }))
+                      }
+                      placeholder="e.g. Patel Family"
+                    />
+                  </Field>
+                  <Field
+                    label="Primary Policyholder"
+                    name="primaryPolicyholderName"
+                    required
+                    error={errors.primaryPolicyholderName}
+                  >
+                    <input
+                      id="primaryPolicyholderName"
+                      className={`form-control ${errors.primaryPolicyholderName ? "error" : ""}`}
+                      value={family.primaryPolicyholderName}
+                      onChange={(e) =>
+                        setFamily((f) => ({
+                          ...f,
+                          primaryPolicyholderName: e.target.value,
+                        }))
+                      }
+                      placeholder={base.customerName || "Primary member name"}
+                    />
+                  </Field>
+                  <Field label="Primary Phone" name="primaryPhone">
+                    <input
+                      id="primaryPhone"
+                      className="form-control"
+                      value={family.primaryPhone}
+                      onChange={(e) =>
+                        setFamily((f) => ({
+                          ...f,
+                          primaryPhone: e.target.value,
+                        }))
+                      }
+                      placeholder="Optional"
+                    />
+                  </Field>
+                </>
+              )}
+
+              {family.mode !== "none" && (
+                <>
+                  <Field label="Member Name" name="familyMemberName">
+                    <input
+                      id="familyMemberName"
+                      className="form-control"
+                      value={family.memberName}
+                      onChange={(e) =>
+                        setFamily((f) => ({ ...f, memberName: e.target.value }))
+                      }
+                      placeholder={base.customerName || "Covered member name"}
+                    />
+                  </Field>
+                  <Field label="Relationship" name="familyRelationship">
+                    <select
+                      id="familyRelationship"
+                      className="form-control"
+                      value={family.relationship}
+                      onChange={(e) =>
+                        setFamily((f) => ({
+                          ...f,
+                          relationship: e.target.value,
+                        }))
+                      }
+                    >
+                      <option value="">Select relationship</option>
+                      <option value="Self">Self</option>
+                      <option value="Spouse">Spouse</option>
+                      <option value="Child">Child</option>
+                      <option value="Parent">Parent</option>
+                      <option value="Sibling">Sibling</option>
+                      <option value="Other">Other</option>
+                    </select>
+                  </Field>
+                </>
+              )}
+            </div>
+          </div>
+
+          {/* ── Referral & Commission ───────────────────────────────── */}
+          <div className="form-section">
+            <div className="form-section-title">Referral &amp; Commission</div>
+            <div className="form-grid">
+              <Field label="Referred By" name="referredById">
+                <select
+                  id="referredById"
+                  className="form-control"
+                  value={referral.referredById}
+                  onChange={(e) =>
+                    setReferral((r) => ({
+                      ...r,
+                      referredById: e.target.value,
+                    }))
+                  }
+                >
+                  <option value="">No referral</option>
+                  {referrals.map((person) => (
+                    <option key={person._id} value={person._id}>
+                      {person.name}
+                      {person.phone ? ` (${person.phone})` : ""}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+
+              {referral.referredById && (
+                <>
+                  <Field label="Commission Type" name="commissionType">
+                    <select
+                      id="commissionType"
+                      className="form-control"
+                      value={referral.commissionType}
+                      onChange={(e) =>
+                        setReferral((r) => ({
+                          ...r,
+                          commissionType: e.target
+                            .value as typeof referral.commissionType,
+                        }))
+                      }
+                    >
+                      <option value="percentage">Commission %</option>
+                      <option value="flat">Flat Amount (₹)</option>
+                    </select>
+                  </Field>
+                  <Field
+                    label={
+                      referral.commissionType === "flat"
+                        ? "Commission Amount (₹)"
+                        : "Commission %"
+                    }
+                    name="commissionValue"
+                    required
+                    error={errors.commissionValue}
+                  >
+                    <input
+                      id="commissionValue"
+                      className={`form-control ${errors.commissionValue ? "error" : ""}`}
+                      value={referral.commissionValue}
+                      onChange={(e) =>
+                        setReferral((r) => ({
+                          ...r,
+                          commissionValue: e.target.value,
+                        }))
+                      }
+                      placeholder={
+                        referral.commissionType === "flat" ? "5000" : "10"
+                      }
+                    />
+                  </Field>
+                  <Field label="Commission Status" name="commissionStatus">
+                    <select
+                      id="commissionStatus"
+                      className="form-control"
+                      value={referral.commissionStatus}
+                      onChange={(e) =>
+                        setReferral((r) => ({
+                          ...r,
+                          commissionStatus: e.target
+                            .value as typeof referral.commissionStatus,
+                        }))
+                      }
+                    >
+                      <option value="Pending">Pending</option>
+                      <option value="Paid">Paid</option>
+                    </select>
+                  </Field>
+                </>
+              )}
             </div>
           </div>
 

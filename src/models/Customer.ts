@@ -24,6 +24,33 @@ const CustomerSchema = new mongoose.Schema({
   startDate: { type: String, required: true },
   endDate: { type: String, required: true },
 
+  familyGroupId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'FamilyGroup',
+    default: null,
+    index: true,
+  },
+  familyMemberName: { type: String, trim: true, default: '' },
+  familyRelationship: { type: String, trim: true, default: '' },
+
+  referredById: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'ReferralMember',
+    default: null,
+    index: true,
+  },
+  commissionType: {
+    type: String,
+    enum: ['percentage', 'flat', ''],
+    default: '',
+  },
+  commissionValue: { type: String, default: '' },
+  commissionStatus: {
+    type: String,
+    enum: ['Pending', 'Paid'],
+    default: 'Pending',
+  },
+
   // ── Type-specific fields (flexible per-type sub-document) ──────────────────
   // Motor:   { vehicleMake, vehicleModel, vehicleYear, registrationNumber,
   //            engineCC, fuelType, idvValue, ncbPercent, addOns }
@@ -55,6 +82,8 @@ const CustomerSchema = new mongoose.Schema({
 CustomerSchema.index({ agentId: 1, type: 1 });
 CustomerSchema.index({ agentId: 1, endDate: 1 });
 CustomerSchema.index({ agentId: 1, policyNumber: 1 });
+CustomerSchema.index({ agentId: 1, familyGroupId: 1 });
+CustomerSchema.index({ agentId: 1, referredById: 1 });
 
 export default mongoose.models.Customer ||
   mongoose.model('Customer', CustomerSchema);

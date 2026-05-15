@@ -46,11 +46,12 @@ export default function LoginContent() {
       });
 
       if (result?.error) {
-        setApiError(
-          result.error === 'Please verify your email address to log in.'
-            ? result.error
-            : 'Invalid email or password. Please try again.'
-        );
+        const authMessages = {
+          'Please verify your email address to log in.': 'Please verify your email address to log in.',
+          'Too many login attempts. Please wait 5 minutes.': 'Too many login attempts. Please wait 5 minutes.',
+        };
+
+        setApiError(authMessages[result.error] || 'Invalid email or password. Please try again.');
       } else if (result?.ok) {
         router.push('/dashboard');
       }

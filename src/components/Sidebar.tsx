@@ -7,12 +7,14 @@ import {
   Users,
   UserPlus,
   Shield,
+  Handshake,
 } from 'lucide-react';
 
 const navLinks = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/dashboard/customers', label: 'Customers', icon: Users },
-  { href: '/dashboard/customers/new', label: 'Add Customer', icon: UserPlus },
+  { href: '/dashboard/customers', label: 'Policies', icon: Users },
+  { href: '/dashboard/customers/new', label: 'Add Policy', icon: UserPlus },
+  { href: '/dashboard/referrals', label: 'Referrals', icon: Handshake },
 ];
 
 export default function Sidebar() {

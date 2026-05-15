@@ -22,6 +22,8 @@ import {
   MapPin,
   Calendar,
   FileText,
+  Users,
+  Handshake,
 } from "lucide-react";
 
 function Field({ label, value }: { label: string; value?: string | null }) {
@@ -98,6 +100,20 @@ export default function CustomerDetailPage() {
   const status = getStatus(policy.endDate as string);
   const days = daysUntilExpiry(policy.endDate as string);
   const type = policy.type as PolicyType;
+  const familyGroup =
+    policy.familyGroupId && typeof policy.familyGroupId === "object"
+      ? policy.familyGroupId
+      : null;
+  const referredBy =
+    policy.referredById && typeof policy.referredById === "object"
+      ? policy.referredById
+      : null;
+  const commissionValue = Number(String(policy.commissionValue ?? "0").replace(/[^0-9.-]/g, "")) || 0;
+  const premiumValue = Number(String(policy.premiumAmount ?? "0").replace(/[^0-9.-]/g, "")) || 0;
+  const commissionAmount =
+    policy.commissionType === "flat"
+      ? commissionValue
+      : (premiumValue * commissionValue) / 100;
 
   async function handleDelete() {
     setDeleteLoading(true);
@@ -640,6 +656,77 @@ export default function CustomerDetailPage() {
             </div>
           </div>
         </div>
+
+        {(familyGroup || policy.familyMemberName || policy.familyRelationship) && (
+          <div className="card">
+            <div className="card-header">
+              <span className="card-title">
+                <Users size={15} style={{ color: "var(--primary)" }} /> Family Group
+              </span>
+              {familyGroup?._id && (
+                <Link
+                  href={`/dashboard/families/${familyGroup._id}`}
+                  className="btn btn-outline btn-sm"
+                >
+                  View Family
+                </Link>
+              )}
+            </div>
+            <div className="card-body">
+              <div className="detail-grid">
+                <Field label="Family Name" value={familyGroup?.familyName} />
+                <Field
+                  label="Primary Policyholder"
+                  value={familyGroup?.primaryPolicyholderName}
+                />
+                <Field
+                  label="Member Name"
+                  value={policy.familyMemberName || policy.customerName}
+                />
+                <Field label="Relationship" value={policy.familyRelationship} />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {(referredBy || policy.commissionValue) && (
+          <div className="card">
+            <div className="card-header">
+              <span className="card-title">
+                <Handshake size={15} style={{ color: "var(--primary)" }} /> Referral &amp; Commission
+              </span>
+              {referredBy?._id && (
+                <Link
+                  href={`/dashboard/referrals/${referredBy._id}`}
+                  className="btn btn-outline btn-sm"
+                >
+                  View Referral
+                </Link>
+              )}
+            </div>
+            <div className="card-body">
+              <div className="detail-grid">
+                <Field label="Referred By" value={referredBy?.name} />
+                <Field
+                  label="Commission Basis"
+                  value={
+                    policy.commissionType === "flat"
+                      ? "Flat amount"
+                      : `${policy.commissionValue || 0}%`
+                  }
+                />
+                <Field
+                  label="Commission Amount"
+                  value={formatCurrency(commissionAmount)}
+                />
+                <Field
+                  label="Commission Status"
+                  value={policy.commissionStatus || "Pending"}
+                />
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Meta */}
         <div
