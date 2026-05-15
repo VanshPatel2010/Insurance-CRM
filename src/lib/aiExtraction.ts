@@ -79,6 +79,9 @@ Return this exact JSON structure (use null for fields not found):
     "smoker": null,
     "membersCount": null,
     "memberNames": [],
+    "memberAges": [],
+    "memberDateOfBirths": [],
+    "members": [{"name": "", "age": "", "dateOfBirth": "", "relationship": "", "gender": ""}],
     "cashlessNetwork": "",
     "propertyType": "",
     "propertyAddress": "",
@@ -130,6 +133,7 @@ Rules:
 - Return null for any field not found — never guess or fabricate
 - For Indian policies: amounts are in INR, interpret accordingly
 - Include ONLY the fields relevant to the identified policy type in details, set others to null
+- For medical/health policies, extract every covered person. Put per-person values in details.members with name, age, dateOfBirth, relationship, and gender. Also fill memberNames, memberAges, memberDateOfBirths, and membersCount when present.
 `.trim();
 
 // ─── PDF → Image extraction (Vercel-safe, no canvas rendering) ──────────────

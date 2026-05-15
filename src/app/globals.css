@@ -862,7 +862,7 @@ textarea.form-control { resize: vertical; min-height: 80px; }
 /* ─── Member Row ─────────────────────────────────────────────────────────────── */
 .member-row {
   display: grid;
-  grid-template-columns: 1fr auto auto;
+  grid-template-columns: 22px minmax(0, 1.4fr) minmax(130px, .7fr) 80px;
   gap: 10px;
   align-items: center;
   padding: 10px;
@@ -1275,7 +1275,7 @@ textarea.form-control { resize: vertical; min-height: 80px; }
   .recent-meta { font-size: 11px; }
   
   .member-row {
-    grid-template-columns: 1fr auto;
+    grid-template-columns: 22px 1fr;
     gap: 8px;
     padding: 8px;
   }

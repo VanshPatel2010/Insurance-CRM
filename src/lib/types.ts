@@ -55,6 +55,9 @@ export interface MotorPolicy extends BasePolicy {
 export interface MemberInfo {
   name: string;
   age: string;
+  dateOfBirth?: string;
+  relationship?: string;
+  gender?: string;
 }
 
 export interface MedicalPolicy extends BasePolicy {

@@ -18,6 +18,7 @@ import {
   ChevronLeft,
   ChevronRight,
   RefreshCw,
+  Users,
 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { formatDistanceToNow } from "date-fns";
@@ -36,6 +37,7 @@ export default function CustomersContent() {
     searchParams.get("filter") === "expiring" ? "Expiring Soon" : "all",
   );
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const [groupByFamily, setGroupByFamily] = useState(false);
 
   // Debounced search val for the query key
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -133,6 +135,27 @@ export default function CustomersContent() {
   const customers = data?.customers || [];
   const total = data?.total || 0;
   const totalPages = data?.totalPages || 1;
+  const familyGroups = customers.reduce((acc: any[], policy: any) => {
+    const family = policy.familyGroupId;
+    if (!family?._id) return acc;
+    let group = acc.find((item) => item.id === family._id);
+    if (!group) {
+      group = {
+        id: family._id,
+        familyName: family.familyName,
+        primaryPolicyholderName: family.primaryPolicyholderName,
+        policies: [],
+        totalPremium: 0,
+        renewalAlerts: 0,
+      };
+      acc.push(group);
+    }
+    group.policies.push(policy);
+    group.totalPremium += Number(String(policy.premiumAmount ?? "0").replace(/[^0-9.-]/g, "")) || 0;
+    if (getStatus(policy.endDate) === "Expiring Soon") group.renewalAlerts += 1;
+    return acc;
+  }, []);
+  const ungroupedPolicies = customers.filter((policy: any) => !policy.familyGroupId?._id);
 
   return (
     <div>
@@ -226,6 +249,13 @@ export default function CustomersContent() {
             <X size={14} /> Clear
           </button>
         )}
+
+        <button
+          className={`btn btn-sm ${groupByFamily ? "btn-primary" : "btn-ghost"}`}
+          onClick={() => setGroupByFamily((value) => !value)}
+        >
+          <Users size={14} /> Group by Family
+        </button>
       </div>
 
       {/* Error state */}
@@ -271,6 +301,123 @@ export default function CustomersContent() {
               </Link>
             )}
           </div>
+        </div>
+      ) : groupByFamily ? (
+        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          {familyGroups.map((group) => (
+            <div className="card" key={group.id}>
+              <div className="card-header">
+                <div>
+                  <div className="card-title">{group.familyName}</div>
+                  <div style={{ fontSize: 12, color: "var(--text-muted)" }}>
+                    Primary: {group.primaryPolicyholderName}
+                  </div>
+                </div>
+                <Link
+                  href={`/dashboard/families/${group.id}`}
+                  className="btn btn-outline btn-sm"
+                >
+                  View Family
+                </Link>
+              </div>
+              <div className="card-body">
+                <div className="stat-grid" style={{ marginBottom: 16 }}>
+                  <div className="stat-card">
+                    <div className="stat-card-value">{group.policies.length}</div>
+                    <div className="stat-card-label">Policies</div>
+                  </div>
+                  <div className="stat-card">
+                    <div className="stat-card-value">
+                      {formatCurrency(group.totalPremium)}
+                    </div>
+                    <div className="stat-card-label">Combined Premium</div>
+                  </div>
+                  <div className="stat-card">
+                    <div className="stat-card-value">{group.renewalAlerts}</div>
+                    <div className="stat-card-label">Renewal Alerts</div>
+                  </div>
+                </div>
+                <div className="table-wrapper">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Member</th>
+                        <th>Type</th>
+                        <th>Policy Number</th>
+                        <th>Premium</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {group.policies.map((p: any) => (
+                        <tr key={p._id}>
+                          <td>
+                            <div className="td-name">
+                              {p.familyMemberName || p.customerName}
+                            </div>
+                            <div className="td-muted">
+                              {p.familyRelationship || p.phone}
+                            </div>
+                          </td>
+                          <td><PolicyBadge type={p.type} /></td>
+                          <td style={{ fontFamily: "monospace", fontSize: 13 }}>
+                            {p.policyNumber || "—"}
+                          </td>
+                          <td>{formatCurrency(p.premiumAmount)}</td>
+                          <td><StatusBadge status={getStatus(p.endDate)} /></td>
+                          <td>
+                            <Link
+                              href={`/dashboard/customers/${p._id}`}
+                              className="btn btn-sm btn-ghost"
+                            >
+                              <Eye size={13} />
+                            </Link>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          ))}
+
+          {ungroupedPolicies.length > 0 && (
+            <div className="card">
+              <div className="card-header">
+                <span className="card-title">Ungrouped Policies</span>
+              </div>
+              <div className="card-body">
+                <div className="table-wrapper">
+                  <table>
+                    <tbody>
+                      {ungroupedPolicies.map((p: any) => (
+                        <tr key={p._id}>
+                          <td>
+                            <div className="td-name">{p.customerName}</div>
+                            <div className="td-muted">{p.phone}</div>
+                          </td>
+                          <td><PolicyBadge type={p.type} /></td>
+                          <td>{p.policyNumber}</td>
+                          <td>{formatCurrency(p.premiumAmount)}</td>
+                          <td><StatusBadge status={getStatus(p.endDate)} /></td>
+                          <td>
+                            <Link
+                              href={`/dashboard/customers/${p._id}`}
+                              className="btn btn-sm btn-ghost"
+                            >
+                              <Eye size={13} />
+                            </Link>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       ) : (
         <>

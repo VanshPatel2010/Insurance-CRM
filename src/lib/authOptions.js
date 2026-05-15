@@ -4,6 +4,23 @@ import { connectDB } from '@/lib/mongodb';
 import Agent from '@/models/Agent';
 import { loginRateLimit } from '@/lib/rateLimit';
 
+async function enforceFailedLoginLimit(email) {
+  if (!process.env.UPSTASH_REDIS_REST_URL) return;
+
+  try {
+    const { success } = await loginRateLimit.limit(`login_${email}`);
+    if (!success) {
+      throw new Error('Too many login attempts. Please wait 5 minutes.');
+    }
+  } catch (error) {
+    if (error.message === 'Too many login attempts. Please wait 5 minutes.') {
+      throw error;
+    }
+
+    console.warn('[Login Rate Limit Error]', error);
+  }
+}
+
 /** @type {import('next-auth').NextAuthOptions} */
 export const authOptions = {
   providers: [
@@ -18,23 +35,21 @@ export const authOptions = {
         const { email, password } = credentials ?? {};
 
         if (!email || !password) return null;
-
-        // Apply rate limit based on email attempt
-        if (process.env.UPSTASH_REDIS_REST_URL) {
-          const identifier = `login_${email.toLowerCase()}`;
-          const { success } = await loginRateLimit.limit(identifier);
-          if (!success) {
-            throw new Error('Too many login attempts. Please wait 5 minutes.');
-          }
-        }
+        const normalizedEmail = email.trim().toLowerCase();
 
         await connectDB();
 
-        const agent = await Agent.findOne({ email: email.toLowerCase() }).select('+password');
-        if (!agent) return null;
+        const agent = await Agent.findOne({ email: normalizedEmail }).select('+password');
+        if (!agent) {
+          await enforceFailedLoginLimit(normalizedEmail);
+          return null;
+        }
 
         const isMatch = await bcrypt.compare(password, agent.password);
-        if (!isMatch) return null;
+        if (!isMatch) {
+          await enforceFailedLoginLimit(normalizedEmail);
+          return null;
+        }
 
         if (!agent.isVerified) {
           throw new Error('Please verify your email address to log in.');

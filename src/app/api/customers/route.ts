@@ -3,6 +3,8 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/authOptions";
 import { connectDB } from "@/lib/mongodb";
 import Customer from "@/models/Customer";
+import FamilyGroup from "@/models/FamilyGroup";
+import ReferralMember from "@/models/ReferralMember";
 import { customerSchema, escapeRegExp } from "@/lib/validations";
 
 // ── GET /api/customers ─────────────────────────────────────────────────────────
@@ -61,6 +63,8 @@ export async function GET(req: NextRequest) {
     .sort({ createdAt: -1 })
     .skip(skip)
     .limit(limit)
+    .populate("familyGroupId", "familyName primaryPolicyholderName")
+    .populate("referredById", "name phone email")
     .lean();
 
   return NextResponse.json({
@@ -123,9 +127,36 @@ export async function POST(req: NextRequest) {
     sumInsured,
     startDate,
     endDate,
+    familyGroupId,
+    familyMemberName,
+    familyRelationship,
+    referredById,
+    commissionType,
+    commissionValue,
+    commissionStatus,
     details: submittedDetails,
     ...rest
   } = data as any;
+
+  if (familyGroupId) {
+    const family = await FamilyGroup.findOne({
+      _id: familyGroupId,
+      agentId: session.user.id,
+    });
+    if (!family) {
+      return NextResponse.json({ error: "Family group not found" }, { status: 404 });
+    }
+  }
+
+  if (referredById) {
+    const referral = await ReferralMember.findOne({
+      _id: referredById,
+      agentId: session.user.id,
+    });
+    if (!referral) {
+      return NextResponse.json({ error: "Referral member not found" }, { status: 404 });
+    }
+  }
 
   const customer = await Customer.create({
     agentId: session.user.id,
@@ -139,6 +170,13 @@ export async function POST(req: NextRequest) {
     sumInsured: sumInsured ?? "",
     startDate,
     endDate,
+    familyGroupId: familyGroupId || null,
+    familyMemberName: familyMemberName ?? customerName,
+    familyRelationship: familyRelationship ?? "",
+    referredById: referredById || null,
+    commissionType: referredById ? commissionType || "percentage" : "",
+    commissionValue: referredById ? commissionValue ?? "" : "",
+    commissionStatus: referredById ? commissionStatus || "Pending" : "Pending",
     details: { ...(submittedDetails ?? {}), ...rest },
   });
 
