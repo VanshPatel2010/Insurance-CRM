@@ -124,6 +124,7 @@ export async function POST(req: NextRequest) {
     address,
     policyNumber,
     premiumAmount,
+    premiumWithoutGst,
     sumInsured,
     startDate,
     endDate,
@@ -131,9 +132,13 @@ export async function POST(req: NextRequest) {
     familyMemberName,
     familyRelationship,
     referredById,
+    referralAgentCode,
     commissionType,
     commissionValue,
     commissionStatus,
+    premiumPaidByAgency,
+    paymentReceivedFromReferral,
+    paymentSentToReferral,
     details: submittedDetails,
     ...rest
   } = data as any;
@@ -167,6 +172,7 @@ export async function POST(req: NextRequest) {
     address: address ?? "",
     policyNumber,
     premiumAmount,
+    premiumWithoutGst: premiumWithoutGst ?? "",
     sumInsured: sumInsured ?? "",
     startDate,
     endDate,
@@ -174,9 +180,13 @@ export async function POST(req: NextRequest) {
     familyMemberName: familyMemberName ?? customerName,
     familyRelationship: familyRelationship ?? "",
     referredById: referredById || null,
+    referralAgentCode: referredById ? referralAgentCode ?? "" : "",
     commissionType: referredById ? commissionType || "percentage" : "",
     commissionValue: referredById ? commissionValue ?? "" : "",
     commissionStatus: referredById ? commissionStatus || "Pending" : "Pending",
+    premiumPaidByAgency: referredById ? premiumPaidByAgency ?? "" : "",
+    paymentReceivedFromReferral: referredById ? paymentReceivedFromReferral ?? "" : "",
+    paymentSentToReferral: referredById ? paymentSentToReferral ?? "" : "",
     details: { ...(submittedDetails ?? {}), ...rest },
   });
 

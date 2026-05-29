@@ -38,6 +38,7 @@ export interface CustomerDoc {
   address: string;
   policyNumber: string;
   premiumAmount: string;
+  premiumWithoutGst?: string;
   sumInsured: string;
   startDate: string;
   endDate: string;
@@ -45,9 +46,13 @@ export interface CustomerDoc {
   familyMemberName?: string;
   familyRelationship?: string;
   referredById?: string | { _id: string; name: string; phone?: string; email?: string } | null;
+  referralAgentCode?: string;
   commissionType?: 'percentage' | 'flat' | '';
   commissionValue?: string;
   commissionStatus?: 'Pending' | 'Paid';
+  premiumPaidByAgency?: string;
+  paymentReceivedFromReferral?: string;
+  paymentSentToReferral?: string;
   details: Record<string, unknown>;
   createdAt: string;
   updatedAt: string;
@@ -85,6 +90,10 @@ export interface ReferralMemberDoc {
   totalCommission?: number;
   pendingCommission?: number;
   paidCommission?: number;
+  premiumPaidByAgency?: number;
+  paymentReceivedFromReferral?: number;
+  paymentSentToReferral?: number;
+  netAmount?: number;
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -242,12 +251,17 @@ export async function getReferralDetail(
   id: string
 ): Promise<{
   referral: ReferralMemberDoc;
-  policies: Array<CustomerDoc & { commissionAmount: number }>;
+  policies: Array<CustomerDoc & { commissionAmount: number; commissionBase: number }>;
   summary: {
     totalReferred: number;
+    totalPolicies?: number;
     totalCommission: number;
     pendingCommission: number;
     paidCommission: number;
+    premiumPaidByAgency: number;
+    paymentReceivedFromReferral: number;
+    paymentSentToReferral: number;
+    netAmount: number;
   };
 }> {
   const res = await fetch(`/api/referrals/${id}`);

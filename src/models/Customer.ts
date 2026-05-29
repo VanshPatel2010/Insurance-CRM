@@ -20,6 +20,7 @@ const CustomerSchema = new mongoose.Schema({
   address: { type: String, trim: true, default: '' },
   policyNumber: { type: String, required: true, trim: true },
   premiumAmount: { type: String, required: true },
+  premiumWithoutGst: { type: String, default: '' },
   sumInsured: { type: String, default: '' },
   startDate: { type: String, required: true },
   endDate: { type: String, required: true },
@@ -39,6 +40,7 @@ const CustomerSchema = new mongoose.Schema({
     default: null,
     index: true,
   },
+  referralAgentCode: { type: String, trim: true, default: '' },
   commissionType: {
     type: String,
     enum: ['percentage', 'flat', ''],
@@ -50,10 +52,14 @@ const CustomerSchema = new mongoose.Schema({
     enum: ['Pending', 'Paid'],
     default: 'Pending',
   },
+  premiumPaidByAgency: { type: String, default: '' },
+  paymentReceivedFromReferral: { type: String, default: '' },
+  paymentSentToReferral: { type: String, default: '' },
 
   // ── Type-specific fields (flexible per-type sub-document) ──────────────────
   // Motor:   { vehicleMake, vehicleModel, vehicleYear, registrationNumber,
-  //            engineCC, fuelType, idvValue, ncbPercent, addOns }
+  //            engineCC, fuelType, idvValue, ncbPercent, addOns, policyType,
+  //            thirdPartyPremium }
   // Medical: { dateOfBirth, age, gender, bloodGroup, preExistingConditions,
   //            smoker, numberOfMembers, members, cashlessHospitalNetwork }
   // Fire:    { propertyType, propertyAddress, builtUpArea, constructionType,

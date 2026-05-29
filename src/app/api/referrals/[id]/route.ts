@@ -4,19 +4,13 @@ import { authOptions } from "@/lib/authOptions";
 import { connectDB } from "@/lib/mongodb";
 import Customer from "@/models/Customer";
 import ReferralMember from "@/models/ReferralMember";
+import {
+  commissionAmount,
+  commissionBaseAmount,
+  summarizeReferralPolicies,
+} from "@/lib/referralMath";
 
 type Params = { params: Promise<{ id: string }> };
-
-function toNumber(value: unknown) {
-  const parsed = Number(String(value ?? "").replace(/[^0-9.-]/g, ""));
-  return Number.isFinite(parsed) ? parsed : 0;
-}
-
-function commissionAmount(policy: any) {
-  const premium = toNumber(policy.premiumAmount);
-  const value = toNumber(policy.commissionValue);
-  return policy.commissionType === "flat" ? value : (premium * value) / 100;
-}
 
 export async function GET(_req: Request, { params }: Params) {
   const session = await getServerSession(authOptions);
@@ -44,18 +38,13 @@ export async function GET(_req: Request, { params }: Params) {
   const policies = rawPolicies.map((policy) => ({
     ...policy,
     commissionAmount: commissionAmount(policy),
+    commissionBase: commissionBaseAmount(policy),
   }));
 
-  const summary = policies.reduce(
-    (acc, policy: any) => {
-      acc.totalReferred += 1;
-      acc.totalCommission += policy.commissionAmount;
-      if (policy.commissionStatus === "Paid") acc.paidCommission += policy.commissionAmount;
-      else acc.pendingCommission += policy.commissionAmount;
-      return acc;
-    },
-    { totalReferred: 0, totalCommission: 0, pendingCommission: 0, paidCommission: 0 },
-  );
+  const summary = {
+    ...summarizeReferralPolicies(policies),
+    totalReferred: policies.length,
+  };
 
   return NextResponse.json({ referral, policies, summary });
 }

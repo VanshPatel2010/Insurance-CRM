@@ -162,6 +162,7 @@ const emptyBase = () => ({
   policyNumber: "",
   sumInsured: "",
   premiumAmount: "",
+  premiumWithoutGst: "",
   startDate: "",
   endDate: "",
 });
@@ -176,6 +177,8 @@ const emptyMotor = (): Omit<MotorPolicy, keyof Policy> =>
     idvValue: "",
     ncbPercent: "",
     addOns: "",
+    policyType: "",
+    thirdPartyPremium: "",
   }) as unknown as Omit<MotorPolicy, keyof Policy>;
 const emptyMedical = () => ({
   dateOfBirth: "",
@@ -282,6 +285,15 @@ function normalizeAgeValue(value: unknown) {
   const raw = asCleanString(value);
   const match = raw.match(/\b(\d{1,3})\b/);
   return match ? match[1] : "";
+}
+
+function isMotorPackagePolicyType(value: unknown) {
+  const policyType = asCleanString(value).toLowerCase();
+  return (
+    policyType.includes("package") ||
+    policyType.includes("comprehensive") ||
+    policyType.includes("full")
+  );
 }
 
 function arrayFromUnknown(value: unknown): unknown[] {
@@ -445,9 +457,13 @@ export default function NewCustomerForm() {
   });
   const [referral, setReferral] = useState({
     referredById: "",
+    referralAgentCode: "",
     commissionType: "percentage" as "percentage" | "flat",
     commissionValue: "",
     commissionStatus: "Pending" as "Pending" | "Paid",
+    premiumPaidByAgency: "",
+    paymentReceivedFromReferral: "",
+    paymentSentToReferral: "",
   });
 
   const [submitting, setSubmitting] = useState(false);
@@ -517,6 +533,7 @@ export default function NewCustomerForm() {
           policyNumber: String(p.policyNumber ?? ""),
           sumInsured: String(p.sumInsured ?? ""),
           premiumAmount: String(p.premiumAmount ?? ""),
+          premiumWithoutGst: String(p.premiumWithoutGst ?? p.premiumAmount ?? ""),
           startDate: String(p.startDate ?? ""),
           endDate: String(p.endDate ?? ""),
         });
@@ -549,11 +566,15 @@ export default function NewCustomerForm() {
             : String(referralValue ?? "");
         setReferral({
           referredById,
+          referralAgentCode: String(p.referralAgentCode ?? ""),
           commissionType:
             p.commissionType === "flat" ? "flat" : "percentage",
           commissionValue: String(p.commissionValue ?? ""),
           commissionStatus:
             p.commissionStatus === "Paid" ? "Paid" : "Pending",
+          premiumPaidByAgency: String(p.premiumPaidByAgency ?? ""),
+          paymentReceivedFromReferral: String(p.paymentReceivedFromReferral ?? ""),
+          paymentSentToReferral: String(p.paymentSentToReferral ?? ""),
         });
         const d = (p.details ?? {}) as Record<string, unknown>;
         if (p.type === "motor") {
@@ -567,6 +588,8 @@ export default function NewCustomerForm() {
             idvValue: String(d.idvValue ?? ""),
             ncbPercent: String(d.ncbPercent ?? ""),
             addOns: String(d.addOns ?? ""),
+            policyType: String(d.policyType ?? ""),
+            thirdPartyPremium: String(d.thirdPartyPremium ?? ""),
           } as unknown as Omit<MotorPolicy, keyof Policy>);
         } else if (p.type === "medical") {
           const members = normalizeMedicalMembers(d);
@@ -710,6 +733,9 @@ export default function NewCustomerForm() {
       policyNumber: String(data.policyNumber ?? ""),
       sumInsured: data.sumInsured != null ? String(data.sumInsured) : "",
       premiumAmount: data.premium != null ? String(data.premium) : "",
+      premiumWithoutGst: String(
+        data.premiumWithoutGst ?? d.netPremium ?? d.netOdPremium ?? "",
+      ),
       startDate: String(data.startDate ?? ""),
       endDate: String(data.endDate ?? ""),
     });
@@ -727,6 +753,9 @@ export default function NewCustomerForm() {
         addOns: Array.isArray(d.addOns)
           ? (d.addOns as string[]).join(", ")
           : String(d.addOns ?? ""),
+        policyType: String(d.policyType ?? ""),
+        thirdPartyPremium:
+          d.thirdPartyPremium != null ? String(d.thirdPartyPremium) : "",
       } as unknown as Omit<MotorPolicy, keyof Policy>);
     } else if (type === "medical") {
       const members = normalizeMedicalMembers(d);
@@ -913,7 +942,9 @@ export default function NewCustomerForm() {
     const fd = new FormData();
     if (clientResult?.text) fd.append("text", clientResult.text);
     if (clientResult?.image) fd.append("image", clientResult.image);
+    if (!clientResult?.text && !clientResult?.image) {
     fd.append("pdf", file);
+  }
 
     return fetch("/api/extract-policy", {
       method: "POST",
@@ -1042,6 +1073,8 @@ export default function NewCustomerForm() {
     if (!base.policyNumber.trim()) e.policyNumber = "Required";
     if (!base.premiumAmount || isNaN(Number(base.premiumAmount)))
       e.premiumAmount = "Enter a valid amount";
+    if (!base.premiumWithoutGst || isNaN(Number(base.premiumWithoutGst)))
+      e.premiumWithoutGst = "Enter a valid amount";
     if (!base.startDate) e.startDate = "Required";
     if (!base.endDate) e.endDate = "Required";
     if (family.mode === "existing" && !family.familyGroupId) {
@@ -1056,6 +1089,27 @@ export default function NewCustomerForm() {
     if (referral.referredById && !referral.commissionValue.trim()) {
       e.commissionValue = "Required";
     }
+    if (
+      referral.referredById &&
+      referral.premiumPaidByAgency &&
+      isNaN(Number(referral.premiumPaidByAgency))
+    ) {
+      e.premiumPaidByAgency = "Enter a valid amount";
+    }
+    if (
+      referral.referredById &&
+      referral.paymentReceivedFromReferral &&
+      isNaN(Number(referral.paymentReceivedFromReferral))
+    ) {
+      e.paymentReceivedFromReferral = "Enter a valid amount";
+    }
+    if (
+      referral.referredById &&
+      referral.paymentSentToReferral &&
+      isNaN(Number(referral.paymentSentToReferral))
+    ) {
+      e.paymentSentToReferral = "Enter a valid amount";
+    }
     if (base.startDate && base.endDate && base.endDate <= base.startDate)
       e.endDate = "End date must be after start date";
     if (selectedType === "motor") {
@@ -1063,6 +1117,13 @@ export default function NewCustomerForm() {
       if (!motor.vehicleModel?.toString().trim()) e.vehicleModel = "Required";
       if (!motor.registrationNumber?.toString().trim())
         e.registrationNumber = "Required";
+      if (
+        isMotorPackagePolicyType(motor.policyType) &&
+        motor.thirdPartyPremium &&
+        isNaN(Number(motor.thirdPartyPremium))
+      ) {
+        e.thirdPartyPremium = "Enter a valid amount";
+      }
     }
     if (selectedType === "medical") {
       if (!medical.dateOfBirth) e.dateOfBirth = "Required";
@@ -1153,9 +1214,17 @@ export default function NewCustomerForm() {
         familyMemberName: family.memberName || base.customerName,
         familyRelationship: family.relationship,
         referredById: referral.referredById,
+        referralAgentCode: referral.referredById ? referral.referralAgentCode : "",
         commissionType: referral.referredById ? referral.commissionType : "",
         commissionValue: referral.referredById ? referral.commissionValue : "",
         commissionStatus: referral.commissionStatus,
+        premiumPaidByAgency: referral.referredById ? referral.premiumPaidByAgency : "",
+        paymentReceivedFromReferral: referral.referredById
+          ? referral.paymentReceivedFromReferral
+          : "",
+        paymentSentToReferral: referral.referredById
+          ? referral.paymentSentToReferral
+          : "",
         details,
       };
       delete payload.phoneCountryIso2;
@@ -1790,6 +1859,42 @@ export default function NewCustomerForm() {
                     placeholder="e.g. 1200"
                   />
                 </Field>
+                <Field label="Policy Type" name="policyType">
+                  <select
+                    id="policyType"
+                    className="form-control"
+                    value={String(motor.policyType ?? "")}
+                    onChange={(e) =>
+                      setMotor((m) => ({ ...m, policyType: e.target.value }))
+                    }
+                  >
+                    <option value="">Select</option>
+                    <option value="PACKAGE">PACKAGE</option>
+                    <option value="TP">TP</option>
+                    <option value="Comprehensive">Comprehensive</option>
+                    <option value="Full Coverage">Full Coverage</option>
+                  </select>
+                </Field>
+                {isMotorPackagePolicyType(motor.policyType) && (
+                  <Field
+                    label="Third Party Premium (₹)"
+                    name="thirdPartyPremium"
+                    error={errors.thirdPartyPremium}
+                  >
+                    <input
+                      id="thirdPartyPremium"
+                      className={`form-control ${errors.thirdPartyPremium ? "error" : ""}`}
+                      value={String(motor.thirdPartyPremium ?? "")}
+                      onChange={(e) =>
+                        setMotor((m) => ({
+                          ...m,
+                          thirdPartyPremium: e.target.value,
+                        }))
+                      }
+                      placeholder="TP component excluded from commission"
+                    />
+                  </Field>
+                )}
                 <Field label="Fuel Type" name="fuelType">
                   <select
                     id="fuelType"
@@ -2984,7 +3089,7 @@ export default function NewCustomerForm() {
                 />
               </Field>
               <Field
-                label="Premium Amount (₹)"
+                label="Premium With GST (₹)"
                 name="premiumAmount"
                 required
                 error={errors.premiumAmount}
@@ -2994,7 +3099,21 @@ export default function NewCustomerForm() {
                   className={`form-control ${errors.premiumAmount ? "error" : ""}`}
                   value={base.premiumAmount}
                   onChange={upBase("premiumAmount")}
-                  placeholder="Annual premium"
+                  placeholder="Total premium"
+                />
+              </Field>
+              <Field
+                label="Premium Without GST (₹)"
+                name="premiumWithoutGst"
+                required
+                error={errors.premiumWithoutGst}
+              >
+                <input
+                  id="premiumWithoutGst"
+                  className={`form-control ${errors.premiumWithoutGst ? "error" : ""}`}
+                  value={base.premiumWithoutGst}
+                  onChange={upBase("premiumWithoutGst")}
+                  placeholder="Net premium"
                 />
               </Field>
               <Field
@@ -3199,6 +3318,20 @@ export default function NewCustomerForm() {
 
               {referral.referredById && (
                 <>
+                  <Field label="Agent Code" name="referralAgentCode">
+                    <input
+                      id="referralAgentCode"
+                      className="form-control"
+                      value={referral.referralAgentCode}
+                      onChange={(e) =>
+                        setReferral((r) => ({
+                          ...r,
+                          referralAgentCode: e.target.value,
+                        }))
+                      }
+                      placeholder="Code used for this policy"
+                    />
+                  </Field>
                   <Field label="Commission Type" name="commissionType">
                     <select
                       id="commissionType"
@@ -3257,6 +3390,60 @@ export default function NewCustomerForm() {
                       <option value="Pending">Pending</option>
                       <option value="Paid">Paid</option>
                     </select>
+                  </Field>
+                  <Field
+                    label="Premium Paid By Agency (₹)"
+                    name="premiumPaidByAgency"
+                    error={errors.premiumPaidByAgency}
+                  >
+                    <input
+                      id="premiumPaidByAgency"
+                      className={`form-control ${errors.premiumPaidByAgency ? "error" : ""}`}
+                      value={referral.premiumPaidByAgency}
+                      onChange={(e) =>
+                        setReferral((r) => ({
+                          ...r,
+                          premiumPaidByAgency: e.target.value,
+                        }))
+                      }
+                      placeholder="Amount agency paid"
+                    />
+                  </Field>
+                  <Field
+                    label="Payment Received From Referral (₹)"
+                    name="paymentReceivedFromReferral"
+                    error={errors.paymentReceivedFromReferral}
+                  >
+                    <input
+                      id="paymentReceivedFromReferral"
+                      className={`form-control ${errors.paymentReceivedFromReferral ? "error" : ""}`}
+                      value={referral.paymentReceivedFromReferral}
+                      onChange={(e) =>
+                        setReferral((r) => ({
+                          ...r,
+                          paymentReceivedFromReferral: e.target.value,
+                        }))
+                      }
+                      placeholder="Amount collected"
+                    />
+                  </Field>
+                  <Field
+                    label="Payment Sent To Referral (₹)"
+                    name="paymentSentToReferral"
+                    error={errors.paymentSentToReferral}
+                  >
+                    <input
+                      id="paymentSentToReferral"
+                      className={`form-control ${errors.paymentSentToReferral ? "error" : ""}`}
+                      value={referral.paymentSentToReferral}
+                      onChange={(e) =>
+                        setReferral((r) => ({
+                          ...r,
+                          paymentSentToReferral: e.target.value,
+                        }))
+                      }
+                      placeholder="Amount returned or paid"
+                    />
                   </Field>
                 </>
               )}

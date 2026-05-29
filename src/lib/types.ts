@@ -31,6 +31,7 @@ export interface BasePolicy {
   policyNumber: string;
   sumInsured: string;
   premiumAmount: string;
+  premiumWithoutGst?: string;
   startDate: string;
   endDate: string;
 }
@@ -48,6 +49,8 @@ export interface MotorPolicy extends BasePolicy {
   idvValue: string;
   ncbPercent: string;
   addOns: string; // comma-separated
+  policyType?: string;
+  thirdPartyPremium?: string;
 }
 
 // ─── Medical / Health Insurance ──────────────────────────────────────────────
