@@ -3,6 +3,7 @@ export type CommissionPolicyInput = {
   premiumAmount?: unknown;
   premiumWithoutGst?: unknown;
   thirdPartyPremium?: unknown;
+  ownDamagePremium?: unknown;
   commissionType?: unknown;
   commissionValue?: unknown;
   commissionStatus?: unknown;
@@ -49,6 +50,11 @@ export function commissionBaseAmount(policy: CommissionPolicyInput) {
   const premiumWithoutGst =
     toMoneyNumber(policy.premiumWithoutGst) || toMoneyNumber(policy.premiumAmount);
   if (isMotorPackagePolicy(policy)) {
+    const ownDamagePremium = toMoneyNumber(
+      policy.ownDamagePremium ?? policy.details?.ownDamagePremium,
+    );
+    if (ownDamagePremium > 0) return ownDamagePremium;
+
     return Math.max(
       premiumWithoutGst - toMoneyNumber(policy.thirdPartyPremium ?? policy.details?.thirdPartyPremium),
       0,

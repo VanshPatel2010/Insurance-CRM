@@ -59,7 +59,7 @@ const CustomerSchema = new mongoose.Schema({
   // ── Type-specific fields (flexible per-type sub-document) ──────────────────
   // Motor:   { vehicleMake, vehicleModel, vehicleYear, registrationNumber,
   //            engineCC, fuelType, idvValue, ncbPercent, addOns, policyType,
-  //            thirdPartyPremium }
+  //            thirdPartyPremium, ownDamagePremium }
   // Medical: { dateOfBirth, age, gender, bloodGroup, preExistingConditions,
   //            smoker, numberOfMembers, members, cashlessHospitalNetwork }
   // Fire:    { propertyType, propertyAddress, builtUpArea, constructionType,

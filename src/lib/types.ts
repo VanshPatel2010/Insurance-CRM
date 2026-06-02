@@ -51,6 +51,7 @@ export interface MotorPolicy extends BasePolicy {
   addOns: string; // comma-separated
   policyType?: string;
   thirdPartyPremium?: string;
+  ownDamagePremium?: string;
   premiumWithoutGst?: string;
 }
 
