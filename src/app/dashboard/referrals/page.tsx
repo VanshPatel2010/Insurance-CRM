@@ -94,6 +94,10 @@ export default function ReferralsPage() {
                 <th>Total Commission</th>
                 <th>Pending</th>
                 <th>Paid</th>
+                <th>Agency Paid</th>
+                <th>Received</th>
+                <th>Sent</th>
+                <th>Net Amount</th>
               </tr>
             </thead>
             <tbody>
@@ -112,11 +116,15 @@ export default function ReferralsPage() {
                   <td>{formatCurrency(person.totalCommission ?? 0)}</td>
                   <td>{formatCurrency(person.pendingCommission ?? 0)}</td>
                   <td>{formatCurrency(person.paidCommission ?? 0)}</td>
+                  <td>{formatCurrency(person.premiumPaidByAgency ?? 0)}</td>
+                  <td>{formatCurrency(person.paymentReceivedFromReferral ?? 0)}</td>
+                  <td>{formatCurrency(person.paymentSentToReferral ?? 0)}</td>
+                  <td>{formatCurrency(person.netAmount ?? 0)}</td>
                 </tr>
               ))}
               {referrals.length === 0 && (
                 <tr>
-                  <td colSpan={6} style={{ textAlign: "center", color: "var(--text-muted)" }}>
+                  <td colSpan={10} style={{ textAlign: "center", color: "var(--text-muted)" }}>
                     No referral members yet.
                   </td>
                 </tr>

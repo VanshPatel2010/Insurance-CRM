@@ -19,6 +19,7 @@ export const customerSchema = z.object({
   address: z.string().trim().optional(),
   policyNumber: z.string().min(1, "Policy number is required").trim(),
   premiumAmount: z.union([z.string(), z.number()]).transform((val) => String(val)),
+  premiumWithoutGst: z.union([z.string(), z.number()]).transform((val) => String(val)).optional(),
   sumInsured: z.union([z.string(), z.number()]).transform((val) => String(val)).optional(),
   startDate: z.string().refine((val) => !isNaN(Date.parse(val)), "Invalid start date"),
   endDate: z.string().refine((val) => !isNaN(Date.parse(val)), "Invalid end date"),

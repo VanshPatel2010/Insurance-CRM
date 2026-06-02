@@ -79,6 +79,7 @@ export async function PUT(req: NextRequest, { params }: Params) {
     address,
     policyNumber,
     premiumAmount,
+    premiumWithoutGst,
     sumInsured,
     startDate,
     endDate,
@@ -86,9 +87,13 @@ export async function PUT(req: NextRequest, { params }: Params) {
     familyMemberName,
     familyRelationship,
     referredById,
+    referralAgentCode,
     commissionType,
     commissionValue,
     commissionStatus,
+    premiumPaidByAgency,
+    paymentReceivedFromReferral,
+    paymentSentToReferral,
     /* eslint-disable @typescript-eslint/no-unused-vars */
     _id: _i,
     agentId: _a,
@@ -141,6 +146,7 @@ export async function PUT(req: NextRequest, { params }: Params) {
     address: address ?? customer.address,
     ...(policyNumber && { policyNumber }),
     ...(premiumAmount && { premiumAmount }),
+    premiumWithoutGst: premiumWithoutGst ?? customer.premiumWithoutGst ?? "",
     sumInsured: sumInsured ?? customer.sumInsured ?? "",
     ...(startDate && { startDate }),
     ...(endDate && { endDate }),
@@ -148,15 +154,34 @@ export async function PUT(req: NextRequest, { params }: Params) {
     familyMemberName: familyMemberName ?? customer.familyMemberName ?? "",
     familyRelationship: familyRelationship ?? customer.familyRelationship ?? "",
     referredById: referredById || null,
+    referralAgentCode: referredById ? referralAgentCode ?? customer.referralAgentCode ?? "" : "",
     commissionType: referredById ? commissionType || customer.commissionType || "percentage" : "",
     commissionValue: referredById ? commissionValue ?? customer.commissionValue ?? "" : "",
     commissionStatus: referredById ? commissionStatus || customer.commissionStatus || "Pending" : "Pending",
+    premiumPaidByAgency: referredById ? premiumPaidByAgency ?? customer.premiumPaidByAgency ?? "" : "",
+    paymentReceivedFromReferral: referredById ? paymentReceivedFromReferral ?? customer.paymentReceivedFromReferral ?? "" : "",
+    paymentSentToReferral: referredById ? paymentSentToReferral ?? customer.paymentSentToReferral ?? "" : "",
     details: { ...customer.details, ...(submittedDetails ?? {}), ...rest },
     updatedAt: new Date(),
   });
 
+  try {
   await customer.save();
   return NextResponse.json(customer);
+} catch (error: any) {
+  if (
+    error?.code === 11000 &&
+    error?.keyPattern?.agentId &&
+    error?.keyPattern?.policyNumber
+  ) {
+    return NextResponse.json(
+      { error: `Policy number "${policyNumber}" already exists.` },
+      { status: 409 }
+    );
+  }
+
+  return NextResponse.json({ error: "Failed to update customer" }, { status: 500 });
+}
 }
 
 // ── DELETE /api/customers/[id] ─────────────────────────────────────────────────

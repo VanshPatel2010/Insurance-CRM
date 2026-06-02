@@ -57,7 +57,7 @@ export async function extractFromPdfClient(file: File): Promise<ClientExtraction
     .replace(/This is a computer generated document and does not require signature.*/gi, '')
     .replace(/For any grievance, please contact the insurance ombudsman.*/gi, '')
     .replace(/\s+/g, ' ')
-    .slice(0, 8000)
+    .slice(0, 9000)
     .trim();
 
   const isScanned = cleanText.length < 50;

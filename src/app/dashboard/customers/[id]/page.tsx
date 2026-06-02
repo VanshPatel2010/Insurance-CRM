@@ -9,6 +9,11 @@ import {
   formatDate,
   daysUntilExpiry,
 } from "@/lib/utils";
+import {
+  commissionAmount,
+  commissionBaseAmount,
+  toMoneyNumber,
+} from "@/lib/referralMath";
 import { PolicyType } from "@/lib/types";
 import PolicyBadge from "@/components/PolicyBadge";
 import StatusBadge from "@/components/StatusBadge";
@@ -108,12 +113,13 @@ export default function CustomerDetailPage() {
     policy.referredById && typeof policy.referredById === "object"
       ? policy.referredById
       : null;
-  const commissionValue = Number(String(policy.commissionValue ?? "0").replace(/[^0-9.-]/g, "")) || 0;
-  const premiumValue = Number(String(policy.premiumAmount ?? "0").replace(/[^0-9.-]/g, "")) || 0;
-  const commissionAmount =
-    policy.commissionType === "flat"
-      ? commissionValue
-      : (premiumValue * commissionValue) / 100;
+  const calculatedCommissionAmount = commissionAmount(policy);
+  const calculatedCommissionBase = commissionBaseAmount(policy);
+  const netAmount =
+    toMoneyNumber(policy.premiumPaidByAgency) -
+    (policy.commissionStatus === "Paid" ? 0 : calculatedCommissionAmount) -
+    toMoneyNumber(policy.paymentReceivedFromReferral) +
+    toMoneyNumber(policy.paymentSentToReferral);
 
   async function handleDelete() {
     setDeleteLoading(true);
@@ -621,8 +627,12 @@ export default function CustomerDetailPage() {
                 value={formatCurrency(policy.sumInsured)}
               />
               <Field
-                label="Premium Amount"
+                label="Premium With GST"
                 value={formatCurrency(policy.premiumAmount)}
+              />
+              <Field
+                label="Premium Without GST"
+                value={formatCurrency(policy.premiumWithoutGst ?? policy.premiumAmount)}
               />
               <div className="detail-field">
                 <div className="detail-field-label">Start Date</div>
@@ -707,6 +717,7 @@ export default function CustomerDetailPage() {
             <div className="card-body">
               <div className="detail-grid">
                 <Field label="Referred By" value={referredBy?.name} />
+                <Field label="Agent Code" value={policy.referralAgentCode} />
                 <Field
                   label="Commission Basis"
                   value={
@@ -716,12 +727,32 @@ export default function CustomerDetailPage() {
                   }
                 />
                 <Field
+                  label="Commission Base"
+                  value={formatCurrency(calculatedCommissionBase)}
+                />
+                <Field
                   label="Commission Amount"
-                  value={formatCurrency(commissionAmount)}
+                  value={formatCurrency(calculatedCommissionAmount)}
                 />
                 <Field
                   label="Commission Status"
                   value={policy.commissionStatus || "Pending"}
+                />
+                <Field
+                  label="Premium Paid By Agency"
+                  value={formatCurrency(policy.premiumPaidByAgency)}
+                />
+                <Field
+                  label="Payment Received From Referral"
+                  value={formatCurrency(policy.paymentReceivedFromReferral)}
+                />
+                <Field
+                  label="Payment Sent To Referral"
+                  value={formatCurrency(policy.paymentSentToReferral)}
+                />
+                <Field
+                  label="Net Amount"
+                  value={formatCurrency(netAmount)}
                 />
               </div>
             </div>
