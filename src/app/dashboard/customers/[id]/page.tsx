@@ -40,6 +40,26 @@ function Field({ label, value }: { label: string; value?: string | null }) {
   );
 }
 
+function normalizeMotorPolicyType(value: unknown) {
+  const policyType = String(value ?? "").trim().toLowerCase();
+  if (!policyType) return "";
+  if (
+    policyType === "tp" ||
+    policyType.includes("third party") ||
+    policyType.includes("liability only")
+  ) {
+    return "TP";
+  }
+  if (
+    policyType.includes("package") ||
+    policyType.includes("comprehensive") ||
+    policyType.includes("full")
+  ) {
+    return "PACKAGE";
+  }
+  return String(value ?? "");
+}
+
 export default function CustomerDetailPage() {
   const router = useRouter();
   const params = useParams();
@@ -254,16 +274,44 @@ export default function CustomerDetailPage() {
                   value={policy.registrationNumber}
                 />
                 <Field label="Engine CC" value={policy.engineCC} />
+                <Field
+                  label="Policy Type"
+                  value={
+                    normalizeMotorPolicyType(policy.policyType) === "PACKAGE"
+                      ? "Package"
+                      : normalizeMotorPolicyType(policy.policyType)
+                  }
+                />
+                {normalizeMotorPolicyType(policy.policyType) === "PACKAGE" && (
+                  <>
+                    <Field
+                      label="TP Premium Without GST"
+                      value={formatCurrency(policy.thirdPartyPremium)}
+                    />
+                    <Field
+                      label="OD Premium With Discount, Without GST"
+                      value={formatCurrency(policy.ownDamagePremium)}
+                    />
+                    <Field
+                      label="Final Premium With GST"
+                      value={formatCurrency(policy.premiumAmount)}
+                    />
+                  </>
+                )}
                 <Field label="Fuel Type" value={policy.fuelType} />
-                <Field
-                  label="IDV Value"
-                  value={formatCurrency(policy.idvValue)}
-                />
-                <Field
-                  label="NCB %"
-                  value={policy.ncbPercent ? `${policy.ncbPercent}%` : "—"}
-                />
-                <Field label="Add-ons" value={policy.addOns} />
+                {normalizeMotorPolicyType(policy.policyType) === "PACKAGE" && (
+                  <>
+                    <Field
+                      label="IDV Value"
+                      value={formatCurrency(policy.idvValue)}
+                    />
+                    <Field
+                      label="NCB %"
+                      value={policy.ncbPercent ? `${policy.ncbPercent}%` : "—"}
+                    />
+                    <Field label="Add-ons" value={policy.addOns} />
+                  </>
+                )}
               </div>
             </div>
           </div>

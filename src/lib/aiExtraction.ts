@@ -74,6 +74,8 @@ Return this exact JSON structure (use null for fields not found):
     "ncb": null,
     "addOns": [],
     "premiumWithoutGst": null,  // Same as root premiumWithoutGst
+    "thirdPartyPremium": null,  // Motor package: TP liability component before GST
+    "ownDamagePremium": null,   // Motor package: OD premium after discount, before GST
     "dateOfBirth": null,
     "age": null,
     "gender": "",
@@ -141,6 +143,11 @@ Rules:
 PREMIUM EXTRACTION RULES (Critical for avoiding confusion):
 - "premium" field = FINAL AMOUNT WITH ALL TAXES/GST = Look for: "Final Premium", "Total Premium (after tax)", "Grand Total", "Total Amount Payable", "Gross Premium"
 - "premiumWithoutGst" field = BASE AMOUNT BEFORE TAX = Look for: "Total Premium", "Net Premium", "Base Premium", "Taxable Premium", "OD Premium", "TP Premium", "Total Liability Premium"
+- For motor PACKAGE policies, extract the premium components separately:
+  - details.thirdPartyPremium = Third Party Liability / TP premium before GST
+  - details.ownDamagePremium = Own Damage / OD premium AFTER discount and BEFORE GST
+  - premium = final policy premium WITH GST
+- If both OD before discount and OD after discount are shown, always use the OD after discount / net OD value for details.ownDamagePremium.
 - For Indian motor policies, the common layout is: [Base Premium] + [GST 9% SGST] + [GST 9% CGST] = [Final Premium]
   Example: Total Premium: 3526 + SGST (9%): 317 + CGST (9%): 317 = Final Premium: 4160
   In this case: premium=4160, premiumWithoutGst=3526
@@ -158,7 +165,7 @@ MOTOR IDV EXTRACTION RULES (Critical for Liability-Only / Third-Party policies):
 
 MOTOR POLICY SUB-TYPE DETECTION:
 - If you see "Liability Only", "Third Party", "TP Only", or "Liability Only Policy" in the policy title or coverage section → set details.policyType = "TP"
-- If you see "Package Policy", "Comprehensive", "Own Damage" in the title → set details.policyType = "Comprehensive"
+- If you see "Package Policy", "Comprehensive", "Full", or "Own Damage" in the title → set details.policyType = "PACKAGE"
 - For TP policies: idvValue should be null (TP policies have no IDV)
 - For TP policies: sumInsured should be null (TP has no fixed sum insured)
 `.trim();
@@ -171,7 +178,12 @@ MOTOR POLICY SUB-TYPE DETECTION:
  */
 function isThirdPartyOnlyPolicy(data: Record<string, unknown>, rawText?: string): boolean {
   const policyType = String((data?.details as any)?.policyType ?? '').toLowerCase();
-  if (policyType === 'tp' || policyType === 'third party' || policyType === 'liability only') {
+  if (
+    policyType === 'tp' ||
+    policyType.includes('third party') ||
+    policyType.includes('liability only') ||
+    policyType.includes('tp only')
+  ) {
     return true;
   }
 
@@ -258,6 +270,19 @@ function postProcessExtraction(rawData: unknown, rawText?: string): unknown {
   // Deep clone to avoid mutation
   const data = JSON.parse(JSON.stringify(rawData)) as Record<string, unknown>;
   const details = (data.details ?? {}) as Record<string, unknown>;
+  const policyType = String(details.policyType ?? '').trim().toLowerCase();
+
+  if (
+    policyType.includes('package') ||
+    policyType.includes('comprehensive') ||
+    policyType.includes('full')
+  ) {
+    details.policyType = 'PACKAGE';
+  }
+  if (details.ownDamagePremium == null) {
+    details.ownDamagePremium =
+      details.netOdPremium ?? details.netODPremium ?? details.odPremiumAfterDiscount ?? null;
+  }
 
   // ── 1. IDV SANITIZATION ────────────────────────────────────────────────────
   // Rule: TP-only policies should never have an IDV
@@ -269,9 +294,7 @@ function postProcessExtraction(rawData: unknown, rawText?: string): unknown {
       details.idvValue = null;
     }
     // Also ensure policyType is set correctly
-    if (!details.policyType || details.policyType === '') {
-      details.policyType = 'TP';
-    }
+    details.policyType = 'TP';
     // TP policies have no sum insured
     if (data.sumInsured != null) {
       data.sumInsured = null;

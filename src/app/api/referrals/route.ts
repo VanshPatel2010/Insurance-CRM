@@ -24,7 +24,7 @@ export async function GET() {
     referredById: { $ne: null },
   })
     .select(
-      "referredById type premiumAmount premiumWithoutGst thirdPartyPremium commissionType commissionValue commissionStatus premiumPaidByAgency paymentReceivedFromReferral paymentSentToReferral details",
+      "referredById type premiumAmount premiumWithoutGst thirdPartyPremium ownDamagePremium commissionType commissionValue commissionStatus premiumPaidByAgency paymentReceivedFromReferral paymentSentToReferral details",
     )
     .lean();
 

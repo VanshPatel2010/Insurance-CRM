@@ -179,6 +179,7 @@ const emptyMotor = (): Omit<MotorPolicy, keyof Policy> =>
     addOns: "",
     policyType: "",
     thirdPartyPremium: "",
+    ownDamagePremium: "",
     premiumWithoutGst: "",
   }) as unknown as Omit<MotorPolicy, keyof Policy>;
 const emptyMedical = () => ({
@@ -289,12 +290,34 @@ function normalizeAgeValue(value: unknown) {
 }
 
 function isMotorPackagePolicyType(value: unknown) {
+  return normalizeMotorPolicyType(value) === "PACKAGE";
+}
+
+function normalizeMotorPolicyType(value: unknown) {
   const policyType = asCleanString(value).toLowerCase();
-  return (
+  if (!policyType) return "";
+  if (
+    policyType === "tp" ||
+    policyType.includes("third party") ||
+    policyType.includes("liability only")
+  ) {
+    return "TP";
+  }
+  if (
     policyType.includes("package") ||
     policyType.includes("comprehensive") ||
     policyType.includes("full")
-  );
+  ) {
+    return "PACKAGE";
+  }
+  return "";
+}
+
+function sumMotorPackageNetPremium(motor: { thirdPartyPremium?: unknown; ownDamagePremium?: unknown }) {
+  const tp = Number(String(motor.thirdPartyPremium ?? "").replace(/[^0-9.-]/g, ""));
+  const od = Number(String(motor.ownDamagePremium ?? "").replace(/[^0-9.-]/g, ""));
+  if (!Number.isFinite(tp) || !Number.isFinite(od)) return "";
+  return String(tp + od);
 }
 
 function arrayFromUnknown(value: unknown): unknown[] {
@@ -620,8 +643,9 @@ export default function NewCustomerForm() {
             idvValue: String(d.idvValue ?? ""),
             ncbPercent: String(d.ncbPercent ?? ""),
             addOns: String(d.addOns ?? ""),
-            policyType: String(d.policyType ?? ""),
+            policyType: normalizeMotorPolicyType(d.policyType),
             thirdPartyPremium: String(d.thirdPartyPremium ?? ""),
+            ownDamagePremium: String(d.ownDamagePremium ?? ""),
           } as unknown as Omit<MotorPolicy, keyof Policy>);
         } else if (p.type === "medical") {
           const members = normalizeMedicalMembers(d);
@@ -773,7 +797,8 @@ export default function NewCustomerForm() {
     });
 
     if (type === "motor") {
-      setMotor({
+      const extractedPolicyType = normalizeMotorPolicyType(d.policyType);
+      setMotor((currentMotor) => ({
         vehicleMake: String(d.make ?? ""),
         vehicleModel: String(d.model ?? ""),
         vehicleYear: d.year != null ? String(d.year) : "",
@@ -785,11 +810,20 @@ export default function NewCustomerForm() {
         addOns: Array.isArray(d.addOns)
           ? (d.addOns as string[]).join(", ")
           : String(d.addOns ?? ""),
-        policyType: String(d.policyType ?? ""),
+        policyType:
+          normalizeMotorPolicyType(currentMotor.policyType) || extractedPolicyType,
         thirdPartyPremium:
           d.thirdPartyPremium != null ? String(d.thirdPartyPremium) : "",
+        ownDamagePremium:
+          d.ownDamagePremium != null
+            ? String(d.ownDamagePremium)
+            : d.netOdPremium != null
+              ? String(d.netOdPremium)
+              : d.odPremium != null
+                ? String(d.odPremium)
+                : "",
         premiumWithoutGst: d.netPremiumWithoutGst != null ? String(d.netPremiumWithoutGst) : "",
-      } as unknown as Omit<MotorPolicy, keyof Policy>);
+      }) as unknown as Omit<MotorPolicy, keyof Policy>);
     } else if (type === "medical") {
       const members = normalizeMedicalMembers(d);
       const primaryMember = pickPrimaryMedicalMember(
@@ -1093,8 +1127,13 @@ export default function NewCustomerForm() {
           : "Switching to manual mode will clear extracted data. Continue?";
       if (!window.confirm(msg)) return;
     }
+    const currentMotorPolicyType =
+      selectedType === "motor" ? normalizeMotorPolicyType(motor.policyType) : "";
     setBase(emptyBase());
-    setMotor(emptyMotor());
+    setMotor({
+      ...emptyMotor(),
+      policyType: currentMotorPolicyType,
+    } as unknown as Omit<MotorPolicy, keyof Policy>);
     setMedical(emptyMedical());
     setFire(emptyFire());
     setLife(emptyLife());
@@ -1126,7 +1165,12 @@ export default function NewCustomerForm() {
     if (!base.policyNumber.trim()) e.policyNumber = "Required";
     if (!base.premiumAmount || isNaN(Number(base.premiumAmount)))
       e.premiumAmount = "Enter a valid amount";
-    if (!base.premiumWithoutGst || isNaN(Number(base.premiumWithoutGst)))
+    const isPackageMotor =
+      selectedType === "motor" && isMotorPackagePolicyType(motor.policyType);
+    if (
+      !isPackageMotor &&
+      (!base.premiumWithoutGst || isNaN(Number(base.premiumWithoutGst)))
+    )
       e.premiumWithoutGst = "Enter a valid amount";
     if (!base.startDate) e.startDate = "Required";
     if (!base.endDate) e.endDate = "Required";
@@ -1170,12 +1214,30 @@ export default function NewCustomerForm() {
       if (!motor.vehicleModel?.toString().trim()) e.vehicleModel = "Required";
       if (!motor.registrationNumber?.toString().trim())
         e.registrationNumber = "Required";
+      if (!normalizeMotorPolicyType(motor.policyType)) e.policyType = "Required";
       if (
+        isMotorPackagePolicyType(motor.policyType) &&
+        !motor.thirdPartyPremium?.toString().trim()
+      ) {
+        e.thirdPartyPremium = "Required";
+      } else if (
         isMotorPackagePolicyType(motor.policyType) &&
         motor.thirdPartyPremium &&
         isNaN(Number(motor.thirdPartyPremium))
       ) {
         e.thirdPartyPremium = "Enter a valid amount";
+      }
+      if (
+        isMotorPackagePolicyType(motor.policyType) &&
+        !motor.ownDamagePremium?.toString().trim()
+      ) {
+        e.ownDamagePremium = "Required";
+      } else if (
+        isMotorPackagePolicyType(motor.policyType) &&
+        motor.ownDamagePremium &&
+        isNaN(Number(motor.ownDamagePremium))
+      ) {
+        e.ownDamagePremium = "Enter a valid amount";
       }
     }
     if (selectedType === "medical") {
@@ -1231,8 +1293,22 @@ export default function NewCustomerForm() {
     setSubmitError("");
 
     let details: Record<string, unknown> = {};
-    if (selectedType === "motor") details = { ...motor };
-    else if (selectedType === "medical") details = { ...medical };
+    if (selectedType === "motor") {
+      const policyType = normalizeMotorPolicyType(motor.policyType);
+      details = {
+        ...motor,
+        policyType,
+        ...(policyType === "TP"
+          ? {
+              thirdPartyPremium: "",
+              ownDamagePremium: "",
+              idvValue: "",
+              ncbPercent: "",
+              addOns: "",
+            }
+          : {}),
+      };
+    } else if (selectedType === "medical") details = { ...medical };
     else if (selectedType === "fire") details = { ...fire };
     else if (selectedType === "life") details = { ...life };
     else if (selectedType === "personal-accident")
@@ -1259,8 +1335,14 @@ export default function NewCustomerForm() {
         familyGroupId = createdFamily._id;
       }
 
+      const packageNetPremium =
+        selectedType === "motor" && isMotorPackagePolicyType(motor.policyType)
+          ? sumMotorPackageNetPremium(motor)
+          : "";
+
       const payload: Record<string, unknown> = {
         ...base,
+        premiumWithoutGst: packageNetPremium || base.premiumWithoutGst,
         phone: formattedPhone,
         type: selectedType,
         familyGroupId: familyGroupId || "",
@@ -1333,6 +1415,31 @@ export default function NewCustomerForm() {
     });
   }
 
+  function setMotorPolicyType(policyType: "TP" | "PACKAGE") {
+    setMotor((m) => ({
+      ...m,
+      policyType,
+      ...(policyType === "TP"
+        ? {
+            thirdPartyPremium: "",
+            ownDamagePremium: "",
+            idvValue: "",
+            ncbPercent: "",
+            addOns: "",
+          }
+        : {}),
+    }));
+    setErrors((err) => {
+      const next = { ...err };
+      delete next.policyType;
+      if (policyType === "TP") {
+        delete next.thirdPartyPremium;
+        delete next.ownDamagePremium;
+      }
+      return next;
+    });
+  }
+
   // ─────────────────────────────────────────────────────────────────────────
   // ── Step 1 — Select type ─────────────────────────────────────────────────
   if (step === 1) {
@@ -1383,6 +1490,45 @@ export default function NewCustomerForm() {
             );
           })}
         </div>
+        {selectedType === "motor" && (
+          <div style={{ maxWidth: 640, margin: "28px auto 0" }}>
+            <div className="form-section-title" style={{ color: "var(--motor)" }}>
+              Choose Motor Policy Type
+            </div>
+            <div className="type-grid" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }}>
+              {[
+                {
+                  type: "TP" as const,
+                  label: "TP",
+                  desc: "Third-party / liability-only policy",
+                },
+                {
+                  type: "PACKAGE" as const,
+                  label: "Package",
+                  desc: "Own damage + TP component",
+                },
+              ].map((opt) => {
+                const isSelected = normalizeMotorPolicyType(motor.policyType) === opt.type;
+                return (
+                  <button
+                    key={opt.type}
+                    className={`type-card ${isSelected ? "selected-motor" : ""}`}
+                    onClick={() => setMotorPolicyType(opt.type)}
+                    id={`motor-policy-${opt.type.toLowerCase()}`}
+                  >
+                    <div className="type-card-label">{opt.label}</div>
+                    <div className="type-card-desc">{opt.desc}</div>
+                    {isSelected && (
+                      <div style={{ color: "var(--motor)" }}>
+                        <Check size={18} />
+                      </div>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
         <div
           style={{
             display: "flex",
@@ -1400,7 +1546,10 @@ export default function NewCustomerForm() {
           </button>
           <button
             className="btn btn-primary"
-            disabled={!selectedType}
+            disabled={
+              !selectedType ||
+              (selectedType === "motor" && !normalizeMotorPolicyType(motor.policyType))
+            }
             onClick={() => selectedType && setStep(2)}
           >
             Next <ChevronRight size={15} />
@@ -1942,41 +2091,70 @@ export default function NewCustomerForm() {
                     placeholder="e.g. 1200"
                   />
                 </Field>
-                <Field label="Policy Type" name="policyType">
+                <Field
+                  label="Policy Type"
+                  name="policyType"
+                  required
+                  error={errors.policyType}
+                >
                   <select
                     id="policyType"
-                    className="form-control"
-                    value={String(motor.policyType ?? "")}
-                    onChange={(e) =>
-                      setMotor((m) => ({ ...m, policyType: e.target.value }))
-                    }
+                    className={`form-control ${errors.policyType ? "error" : ""}`}
+                    value={normalizeMotorPolicyType(motor.policyType)}
+                    onChange={(e) => {
+                      if (e.target.value === "TP" || e.target.value === "PACKAGE") {
+                        setMotorPolicyType(e.target.value);
+                      } else {
+                        setMotor((m) => ({ ...m, policyType: "" }));
+                      }
+                    }}
                   >
                     <option value="">Select</option>
-                    <option value="PACKAGE">PACKAGE</option>
                     <option value="TP">TP</option>
-                    <option value="Comprehensive">Comprehensive</option>
-                    <option value="Full Coverage">Full Coverage</option>
+                    <option value="PACKAGE">Package</option>
                   </select>
                 </Field>
                 {isMotorPackagePolicyType(motor.policyType) && (
-                  <Field
-                    label="Third Party Premium (₹)"
-                    name="thirdPartyPremium"
-                    error={errors.thirdPartyPremium}
-                  >
-                    <input
-                      id="thirdPartyPremium"
-                      className={`form-control ${errors.thirdPartyPremium ? "error" : ""}`}
-                      value={String(motor.thirdPartyPremium ?? "")}
-                      onChange={(e) =>
-                        setMotor((m) => ({
-                          ...m,
-                          thirdPartyPremium: e.target.value,
-                        }))
-                      }
-                      placeholder="TP component excluded from commission"
-                    />
-                  </Field>
+                  <>
+                    <Field
+                      label="TP Premium Without GST (₹)"
+                      name="thirdPartyPremium"
+                      required
+                      error={errors.thirdPartyPremium}
+                    >
+                      <input
+                        id="thirdPartyPremium"
+                        className={`form-control ${errors.thirdPartyPremium ? "error" : ""}`}
+                        value={String(motor.thirdPartyPremium ?? "")}
+                        onChange={(e) =>
+                          setMotor((m) => ({
+                            ...m,
+                            thirdPartyPremium: e.target.value,
+                          }))
+                        }
+                        placeholder="Third-party liability premium"
+                      />
+                    </Field>
+                    <Field
+                      label="OD Premium With Discount, Without GST (₹)"
+                      name="ownDamagePremium"
+                      required
+                      error={errors.ownDamagePremium}
+                    >
+                      <input
+                        id="ownDamagePremium"
+                        className={`form-control ${errors.ownDamagePremium ? "error" : ""}`}
+                        value={String(motor.ownDamagePremium ?? "")}
+                        onChange={(e) =>
+                          setMotor((m) => ({
+                            ...m,
+                            ownDamagePremium: e.target.value,
+                          }))
+                        }
+                        placeholder="Commission calculated on this amount"
+                      />
+                    </Field>
+                  </>
                 )}
                 <Field label="Fuel Type" name="fuelType">
                   <select
@@ -1997,39 +2175,43 @@ export default function NewCustomerForm() {
                     <option>Electric</option>
                   </select>
                 </Field>
-                <Field label="IDV Value (₹)" name="idvValue">
-                  <input
-                    id="idvValue"
-                    className="form-control"
-                    value={String(motor.idvValue ?? "")}
-                    onChange={(e) =>
-                      setMotor((m) => ({ ...m, idvValue: e.target.value }))
-                    }
-                    placeholder="Insured Declared Value"
-                  />
-                </Field>
-                <Field label="NCB (%)" name="ncbPercent">
-                  <input
-                    id="ncbPercent"
-                    className="form-control"
-                    value={String(motor.ncbPercent ?? "")}
-                    onChange={(e) =>
-                      setMotor((m) => ({ ...m, ncbPercent: e.target.value }))
-                    }
-                    placeholder="No Claim Bonus %"
-                  />
-                </Field>
-                <Field label="Add-ons" name="addOns">
-                  <input
-                    id="addOns"
-                    className="form-control"
-                    value={String(motor.addOns ?? "")}
-                    onChange={(e) =>
-                      setMotor((m) => ({ ...m, addOns: e.target.value }))
-                    }
-                    placeholder="Zero Dep, Roadside Assistance…"
-                  />
-                </Field>
+                {isMotorPackagePolicyType(motor.policyType) && (
+                  <>
+                    <Field label="IDV Value (₹)" name="idvValue">
+                      <input
+                        id="idvValue"
+                        className="form-control"
+                        value={String(motor.idvValue ?? "")}
+                        onChange={(e) =>
+                          setMotor((m) => ({ ...m, idvValue: e.target.value }))
+                        }
+                        placeholder="Insured Declared Value"
+                      />
+                    </Field>
+                    <Field label="NCB (%)" name="ncbPercent">
+                      <input
+                        id="ncbPercent"
+                        className="form-control"
+                        value={String(motor.ncbPercent ?? "")}
+                        onChange={(e) =>
+                          setMotor((m) => ({ ...m, ncbPercent: e.target.value }))
+                        }
+                        placeholder="No Claim Bonus %"
+                      />
+                    </Field>
+                    <Field label="Add-ons" name="addOns">
+                      <input
+                        id="addOns"
+                        className="form-control"
+                        value={String(motor.addOns ?? "")}
+                        onChange={(e) =>
+                          setMotor((m) => ({ ...m, addOns: e.target.value }))
+                        }
+                        placeholder="Zero Dep, Roadside Assistance…"
+                      />
+                    </Field>
+                  </>
+                )}
               </div>
             </div>
           )}
@@ -3185,20 +3367,22 @@ export default function NewCustomerForm() {
                   placeholder="Total premium"
                 />
               </Field>
-              <Field
-                label="Premium Without GST (₹)"
-                name="premiumWithoutGst"
-                required
-                error={errors.premiumWithoutGst}
-              >
-                <input
-                  id="premiumWithoutGst"
-                  className={`form-control ${errors.premiumWithoutGst ? "error" : ""}`}
-                  value={base.premiumWithoutGst}
-                  onChange={upBase("premiumWithoutGst")}
-                  placeholder="Net premium"
-                />
-              </Field>
+              {!(selectedType === "motor" && isMotorPackagePolicyType(motor.policyType)) && (
+                <Field
+                  label="Premium Without GST (₹)"
+                  name="premiumWithoutGst"
+                  required
+                  error={errors.premiumWithoutGst}
+                >
+                  <input
+                    id="premiumWithoutGst"
+                    className={`form-control ${errors.premiumWithoutGst ? "error" : ""}`}
+                    value={base.premiumWithoutGst}
+                    onChange={upBase("premiumWithoutGst")}
+                    placeholder="Net premium"
+                  />
+                </Field>
+              )}
               <Field
                 label="Policy Start Date"
                 name="startDate"
