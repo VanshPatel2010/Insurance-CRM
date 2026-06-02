@@ -9,6 +9,7 @@
  * Step 2: Scanned Check    → if text.length > 50: digital PDF, else: scanned
  * Step 3a: Digital PDF     → send text to Gemini with JSON response mime type
  * Step 3b: Scanned PDF     → extract image from PDF, send to Gemini
+ * Step 4: Post-Processing  → sanitize + validate extracted data (NEW)
  */
 import { resolve } from 'path';
 
@@ -56,7 +57,8 @@ Return this exact JSON structure (use null for fields not found):
   "email": "",
   "address": "",
   "policyNumber": "",
-  "premium": null,
+  "premium": null,              // FINAL AMOUNT WITH GST/TAX (e.g., "Final Premium" from policy)
+  "premiumWithoutGst": null,    // BASE AMOUNT BEFORE GST/TAX (e.g., "Total Premium" before tax rows)
   "sumInsured": null,
   "startDate": null,
   "endDate": null,
@@ -71,6 +73,7 @@ Return this exact JSON structure (use null for fields not found):
     "idvValue": null,
     "ncb": null,
     "addOns": [],
+    "premiumWithoutGst": null,  // Same as root premiumWithoutGst
     "dateOfBirth": null,
     "age": null,
     "gender": "",
@@ -118,7 +121,7 @@ Return this exact JSON structure (use null for fields not found):
     "tripStartDate": null,
     "tripEndDate": null,
     "numberOfTravelers": null,
-    "travelers": [{"name": "", "age": "", "relationship": ""}],
+    "travelers": [{"name": "", "age": "", "dateOfBirth": "", "relationship": ""}],
     "visaType": "",
     "activitiesCovered": [],
     "coverageAmount": null,
@@ -134,7 +137,214 @@ Rules:
 - For Indian policies: amounts are in INR, interpret accordingly
 - Include ONLY the fields relevant to the identified policy type in details, set others to null
 - For medical/health policies, extract every covered person. Put per-person values in details.members with name, age, dateOfBirth, relationship, and gender. Also fill memberNames, memberAges, memberDateOfBirths, and membersCount when present.
+
+PREMIUM EXTRACTION RULES (Critical for avoiding confusion):
+- "premium" field = FINAL AMOUNT WITH ALL TAXES/GST = Look for: "Final Premium", "Total Premium (after tax)", "Grand Total", "Total Amount Payable", "Gross Premium"
+- "premiumWithoutGst" field = BASE AMOUNT BEFORE TAX = Look for: "Total Premium", "Net Premium", "Base Premium", "Taxable Premium", "OD Premium", "TP Premium", "Total Liability Premium"
+- For Indian motor policies, the common layout is: [Base Premium] + [GST 9% SGST] + [GST 9% CGST] = [Final Premium]
+  Example: Total Premium: 3526 + SGST (9%): 317 + CGST (9%): 317 = Final Premium: 4160
+  In this case: premium=4160, premiumWithoutGst=3526
+- VALIDATION: If you find both values, verify: premiumWithoutGst × 1.18 ≈ premium (for 18% GST). If not matching, reconsider.
+- Never return "Total Premium" row as the final premium if there's a "Final Premium", "Gross Premium", or "Grand Total" row visible
+- Priority order for FINAL amount: "Final Premium" > "Gross Premium" > "Grand Total" > "Total Amount" > "Total Premium (with tax)"
+- Priority order for BASE amount: "Net Premium" > "Base Premium" > "Total Liability Premium" > "Total Premium" (only if taxes are listed separately below it)
+
+MOTOR IDV EXTRACTION RULES (Critical for Liability-Only / Third-Party policies):
+- IDV (Insured Declared Value) is found in a column explicitly labelled "Vehicle IDV" or "IDV (Rs)" or "Total IDV"
+- In Liability-Only / TP-Only / Third Party policies, IDV is typically 0 or "NA" — this is CORRECT and expected
+- NEVER use Chassis Number, Engine Number, Registration Number, or any vehicle identifier as IDV
+- If the "Vehicle IDV" column value is 0 or blank, set idvValue to null — do NOT substitute another nearby numeric value
+- The chassis number and engine number are always 5-7 digit or alphanumeric codes (e.g. 327222, 330588) — these are NOT monetary values
+
+MOTOR POLICY SUB-TYPE DETECTION:
+- If you see "Liability Only", "Third Party", "TP Only", or "Liability Only Policy" in the policy title or coverage section → set details.policyType = "TP"
+- If you see "Package Policy", "Comprehensive", "Own Damage" in the title → set details.policyType = "Comprehensive"
+- For TP policies: idvValue should be null (TP policies have no IDV)
+- For TP policies: sumInsured should be null (TP has no fixed sum insured)
 `.trim();
+
+// ─── Post-Processing: Sanitize and validate extracted data (NEW) ──────────────
+
+/**
+ * Detects if the extracted data is from a Liability-Only / TP-Only motor policy
+ * by looking at the raw text or the policy type field.
+ */
+function isThirdPartyOnlyPolicy(data: Record<string, unknown>, rawText?: string): boolean {
+  const policyType = String((data?.details as any)?.policyType ?? '').toLowerCase();
+  if (policyType === 'tp' || policyType === 'third party' || policyType === 'liability only') {
+    return true;
+  }
+
+  // Scan raw extracted text for TP-policy indicators
+  if (rawText) {
+    const tpPatterns = [
+      /liability\s+only\s+policy/i,
+      /third\s+party\s+(liability|only)/i,
+      /tp\s+only/i,
+      /IRDAN\d+RP0040V/i, // Bajaj TP policy UIN pattern
+    ];
+    if (tpPatterns.some(p => p.test(rawText))) return true;
+  }
+
+  return false;
+}
+
+/**
+ * Known vehicle identifier ranges to reject as IDV.
+ * Chassis numbers, engine numbers etc. are typically 4-7 digits,
+ * while a realistic IDV for a car is ₹50,000 – ₹50,00,000.
+ */
+function isUnrealisticIdv(value: number | null | undefined): boolean {
+  if (value == null) return false;
+  // IDV below ₹10,000 or above ₹5 crore is almost certainly wrong for a private car
+  return value < 10_000 || value > 50_000_000;
+}
+
+/**
+ * Validates and cross-checks premium vs premiumWithoutGst.
+ * Returns corrected [premium, premiumWithoutGst].
+ *
+ * Indian GST on motor insurance is 18% (9% SGST + 9% CGST).
+ * Some policies show 0% for specific items, but the blended rate on TP is 18%.
+ */
+function reconcilePremiums(
+  premium: number | null,
+  premiumWithoutGst: number | null,
+): [number | null, number | null] {
+  if (premium == null && premiumWithoutGst == null) return [null, null];
+
+  // If only one is present, derive the other
+  if (premium != null && premiumWithoutGst == null) {
+    // Assume 18% GST → base = final / 1.18
+    const derived = Math.round(premium / 1.18);
+    return [premium, derived];
+  }
+  if (premiumWithoutGst != null && premium == null) {
+    // Derive final from base
+    const derived = Math.round(premiumWithoutGst * 1.18);
+    return [derived, premiumWithoutGst];
+  }
+
+  // Both present — validate they make sense
+  if (premium != null && premiumWithoutGst != null) {
+    // premium must always be > premiumWithoutGst (since GST > 0)
+    if (premium < premiumWithoutGst) {
+      // They are swapped — fix it
+      console.warn('[postProcess] premium < premiumWithoutGst — values appear swapped, correcting.');
+      return [premiumWithoutGst, premium];
+    }
+
+    const ratio = premium / premiumWithoutGst;
+    // Acceptable GST range: 0% to 28% → ratio between 1.0 and 1.28
+    if (ratio < 1.0 || ratio > 1.30) {
+      console.warn(`[postProcess] Premium ratio ${ratio.toFixed(3)} outside expected GST range. Flagging.`);
+      // Don't auto-correct here; return as-is and let the caller decide
+    }
+  }
+
+  return [premium, premiumWithoutGst];
+}
+
+/**
+ * Main post-processing function. Takes raw AI output and applies
+ * deterministic validation / correction rules.
+ *
+ * @param rawData  - JSON object returned by the AI
+ * @param rawText  - Original extracted PDF text (used for pattern matching)
+ */
+function postProcessExtraction(rawData: unknown, rawText?: string): unknown {
+  if (!rawData || typeof rawData !== 'object') return rawData;
+
+  // Deep clone to avoid mutation
+  const data = JSON.parse(JSON.stringify(rawData)) as Record<string, unknown>;
+  const details = (data.details ?? {}) as Record<string, unknown>;
+
+  // ── 1. IDV SANITIZATION ────────────────────────────────────────────────────
+  // Rule: TP-only policies should never have an IDV
+  if (isThirdPartyOnlyPolicy(data, rawText)) {
+    if (details.idvValue != null) {
+      console.warn(
+        `[postProcess] TP-only policy — clearing AI-assigned idvValue: ${details.idvValue}`
+      );
+      details.idvValue = null;
+    }
+    // Also ensure policyType is set correctly
+    if (!details.policyType || details.policyType === '') {
+      details.policyType = 'TP';
+    }
+    // TP policies have no sum insured
+    if (data.sumInsured != null) {
+      data.sumInsured = null;
+    }
+  } else {
+    // Comprehensive policies: reject chassis/engine numbers masquerading as IDV
+    const idv = details.idvValue as number | null;
+    if (idv != null && isUnrealisticIdv(idv)) {
+      console.warn(
+        `[postProcess] Unrealistic IDV value detected (${idv}) — likely a chassis/engine number. Clearing.`
+      );
+      details.idvValue = null;
+    }
+  }
+
+  // ── 2. PREMIUM / GST RECONCILIATION ────────────────────────────────────────
+  const rawPremium = toNumberOrNull(data.premium);
+  const rawBase = toNumberOrNull(data.premiumWithoutGst);
+
+  const [correctedPremium, correctedBase] = reconcilePremiums(rawPremium, rawBase);
+
+  data.premium = correctedPremium;
+  data.premiumWithoutGst = correctedBase;
+
+  // Mirror into details as well (your schema duplicates it)
+  details.premiumWithoutGst = correctedBase;
+
+  // ── 3. DATE FORMAT NORMALIZATION ───────────────────────────────────────────
+  // Ensure dates are YYYY-MM-DD. The AI sometimes returns DD-MM-YYYY or DD/MM/YYYY.
+  for (const field of ['startDate', 'endDate'] as const) {
+    const raw = data[field];
+    if (typeof raw === 'string' && raw) {
+      data[field] = normalizeDateString(raw);
+    }
+  }
+
+  data.details = details;
+  return data;
+}
+
+/**
+ * Converts a value to a number, stripping currency symbols/commas.
+ * Returns null if not parseable or already null.
+ */
+function toNumberOrNull(value: unknown): number | null {
+  if (value == null) return null;
+  if (typeof value === 'number') return isNaN(value) ? null : value;
+  if (typeof value === 'string') {
+    const cleaned = value.replace(/[₹,\s]/g, '');
+    const parsed = parseFloat(cleaned);
+    return isNaN(parsed) ? null : parsed;
+  }
+  return null;
+}
+
+/**
+ * Normalizes various Indian date formats to YYYY-MM-DD.
+ * Handles: DD-MM-YYYY, DD/MM/YYYY, D-M-YYYY, YYYY-MM-DD (passthrough)
+ */
+function normalizeDateString(raw: string): string {
+  // Already ISO format
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
+
+  // DD-MM-YYYY or DD/MM/YYYY
+  const dmyMatch = raw.match(/^(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})$/);
+  if (dmyMatch) {
+    const [, d, m, y] = dmyMatch;
+    return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+  }
+
+  // Return as-is if we can't parse it
+  return raw;
+}
 
 // ─── PDF → Image extraction (Vercel-safe, no canvas rendering) ──────────────
 
@@ -282,7 +492,7 @@ async function extractTextFromPdf(pdfBuffer: Buffer): Promise<string> {
       .replace(/This is a computer generated document and does not require signature.*/gi, '')
       .replace(/For any grievance, please contact the insurance ombudsman.*/gi, '')
       .replace(/\s+/g, ' ')
-      .slice(0, 8000)
+      .slice(0, 9000)
       .trim();
 
   } catch (err) {
@@ -393,9 +603,9 @@ async function geminiExtractText(text: string): Promise<unknown> {
   if (!apiKey) {
     throw new Error('GEMINI_API_KEY not configured');
   }
-  
+
   const cleanText = text.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '').trim();
-  const model = 'gemini-3.1-flash-lite-preview'; // Ensure you're using the standard REST model name
+  const model = 'gemini-3.1-flash-lite';
 
   const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
     method: 'POST',
@@ -413,7 +623,7 @@ async function geminiExtractText(text: string): Promise<unknown> {
       generationConfig: {
         temperature: 0.1,
         maxOutputTokens: 2000,
-        responseMimeType: 'application/json' // Forces Gemini to return pure JSON
+        responseMimeType: 'application/json'
       }
     })
   });
@@ -423,7 +633,6 @@ async function geminiExtractText(text: string): Promise<unknown> {
     const errData = await res.json().catch(() => ({}));
     throw new Error(`Gemini ${res.status}: ${JSON.stringify(errData)}`);
   }
-
   const json = await res.json();
   const raw = json?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
   if (!raw) throw new Error('Gemini returned empty response');
@@ -515,20 +724,15 @@ export async function extractPolicyData(input: Buffer | PreExtractedData): Promi
     if (isDigitalPdf && extractedText) {
       console.log('[aiExtraction] Sending text to Gemini API…');
       try {
-        const data = await geminiExtractText(extractedText);
-        return {
-          success: true,
-          data,
-          provider: 'gemini-text',
-        };
+        const rawData = await geminiExtractText(extractedText);
+        // ── NEW: Post-process to fix known AI mistakes ──
+        const data = postProcessExtraction(rawData, extractedText);
+        return { success: true, data, provider: 'gemini-text' };
       } catch (geminiErr) {
         console.warn(`[aiExtraction] Gemini text extraction failed: ${(geminiErr as Error).message}. Trying Groq...`);
-        const data = await groqExtractText(extractedText);
-        return {
-          success: true,
-          data,
-          provider: 'groq-text',
-        };
+        const rawData = await groqExtractText(extractedText);
+        const data = postProcessExtraction(rawData, extractedText);
+        return { success: true, data, provider: 'groq-text' };
       }
     } else {
       if (Buffer.isBuffer(input)) {
@@ -539,39 +743,28 @@ export async function extractPolicyData(input: Buffer | PreExtractedData): Promi
       if (base64Image) {
         console.log('[aiExtraction] Sending image to Gemini API…');
         try {
-          const data = await geminiExtractImage(base64Image);
-          return {
-            success: true,
-            data,
-            provider: 'gemini-vision',
-          };
+          const rawData = await geminiExtractImage(base64Image);
+          // ── NEW: Post-process (no raw text available for image path) ──
+          const data = postProcessExtraction(rawData, extractedText);
+          return { success: true, data, provider: 'gemini-vision' };
         } catch (geminiErr) {
           console.warn(`[aiExtraction] Gemini image extraction failed: ${(geminiErr as Error).message}. Trying Groq...`);
-          const data = await groqExtractImage(base64Image);
-          return {
-            success: true,
-            data,
-            provider: 'groq-vision',
-          };
+          const rawData = await groqExtractImage(base64Image);
+          const data = postProcessExtraction(rawData, extractedText);
+          return { success: true, data, provider: 'groq-vision' };
         }
       } else {
         console.log('[aiExtraction] No image found; falling back to text extraction…');
         const textToUse = extractedText || '';
         try {
-          const data = await geminiExtractText(textToUse);
-          return {
-            success: true,
-            data,
-            provider: 'gemini-text-fallback',
-          };
+          const rawData = await geminiExtractText(textToUse);
+          const data = postProcessExtraction(rawData, textToUse);
+          return { success: true, data, provider: 'gemini-text-fallback' };
         } catch (geminiErr) {
           console.warn(`[aiExtraction] Gemini fallback text extraction failed: ${(geminiErr as Error).message}. Trying Groq...`);
-          const data = await groqExtractText(textToUse);
-          return {
-            success: true,
-            data,
-            provider: 'groq-text-fallback',
-          };
+          const rawData = await groqExtractText(textToUse);
+          const data = postProcessExtraction(rawData, textToUse);
+          return { success: true, data, provider: 'groq-text-fallback' };
         }
       }
     }

@@ -179,6 +179,7 @@ const emptyMotor = (): Omit<MotorPolicy, keyof Policy> =>
     addOns: "",
     policyType: "",
     thirdPartyPremium: "",
+    premiumWithoutGst: "",
   }) as unknown as Omit<MotorPolicy, keyof Policy>;
 const emptyMedical = () => ({
   dateOfBirth: "",
@@ -476,6 +477,32 @@ export default function NewCustomerForm() {
   const [isDragging, setIsDragging] = useState(false);
   const [isExtracting, setIsExtracting] = useState(false);
   const [extractionTimeMs, setExtractionTimeMs] = useState(0);
+  const [extractionProgress, setExtractionProgress] = useState(0);
+  const [extractionStageLabel, setExtractionStageLabel] = useState("");
+  const extractionProgressTimerRef = useRef<number | null>(null);
+
+  const stopExtractionProgressTimer = () => {
+    if (extractionProgressTimerRef.current != null) {
+      window.clearInterval(extractionProgressTimerRef.current);
+      extractionProgressTimerRef.current = null;
+    }
+  };
+
+  const setExtractionStep = (progress: number, label: string) => {
+    setExtractionProgress((prev) => Math.max(prev, progress));
+    setExtractionStageLabel(label);
+  };
+
+  const startExtractionProgressDrift = (maxProgress = 88) => {
+    stopExtractionProgressTimer();
+    extractionProgressTimerRef.current = window.setInterval(() => {
+      setExtractionProgress((prev) => {
+        if (prev >= maxProgress) return prev;
+        const increment = prev < 55 ? 3 : 1;
+        return Math.min(maxProgress, prev + increment);
+      });
+    }, 250);
+  };
 
   useEffect(() => {
     if (!isExtracting) {
@@ -490,6 +517,7 @@ export default function NewCustomerForm() {
   }, [isExtracting]);
 
   const getExtractionMessage = () => {
+    if (extractionStageLabel) return extractionStageLabel;
     if (extractionTimeMs < 5000) return "Reading Document...";
     if (extractionTimeMs < 15000) return "Extracting Policy Details...";
     if (extractionTimeMs < 30000) return "AI Analysis in Progress...";
@@ -499,6 +527,10 @@ export default function NewCustomerForm() {
   const [extractionError, setExtractionError] = useState("");
   const [selectedFileName, setSelectedFileName] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    return () => stopExtractionProgressTimer();
+  }, []);
 
   useEffect(() => {
     Promise.all([getFamilyGroups(), getReferrals()])
@@ -756,6 +788,7 @@ export default function NewCustomerForm() {
         policyType: String(d.policyType ?? ""),
         thirdPartyPremium:
           d.thirdPartyPremium != null ? String(d.thirdPartyPremium) : "",
+        premiumWithoutGst: d.netPremiumWithoutGst != null ? String(d.netPremiumWithoutGst) : "",
       } as unknown as Omit<MotorPolicy, keyof Policy>);
     } else if (type === "medical") {
       const members = normalizeMedicalMembers(d);
@@ -943,8 +976,8 @@ export default function NewCustomerForm() {
     if (clientResult?.text) fd.append("text", clientResult.text);
     if (clientResult?.image) fd.append("image", clientResult.image);
     if (!clientResult?.text && !clientResult?.image) {
-    fd.append("pdf", file);
-  }
+      fd.append("pdf", file);
+    }
 
     return fetch("/api/extract-policy", {
       method: "POST",
@@ -954,6 +987,7 @@ export default function NewCustomerForm() {
 
   // ── Single-file extraction ────────────────────────────────────────────────
   async function handleFileSelected(file: File) {
+    stopExtractionProgressTimer();
     setFileError("");
     setExtractionError("");
 
@@ -970,6 +1004,8 @@ export default function NewCustomerForm() {
     setIsExtracting(true);
     setWasExtracted(false);
     setExtractionConfidence(100);
+    setExtractionProgress(5);
+    setExtractionStageLabel("Validating PDF...");
 
     try {
       let clientResult:
@@ -982,6 +1018,7 @@ export default function NewCustomerForm() {
       try {
         // Older Chrome can get stuck in client-side PDF parsing without throwing.
         // If that happens, fall back to uploading the raw PDF to the server.
+        setExtractionStep(22, "Reading PDF content...");
         clientResult = await Promise.race([
           extractFromPdfClient(file),
           new Promise<undefined>((resolve) => {
@@ -993,16 +1030,24 @@ export default function NewCustomerForm() {
           console.warn(
             "[Extraction] Client PDF parsing timed out, falling back to server extraction",
           );
+          setExtractionStep(34, "Uploading PDF for server-side parsing...");
+        } else {
+          setExtractionStep(40, "Sending parsed data to AI extractor...");
         }
       } catch (clientErr) {
         console.warn(
           "[Extraction] Client PDF parsing failed, falling back to server extraction",
           clientErr,
         );
+        setExtractionStep(34, "Uploading PDF for server-side parsing...");
       }
 
+      setExtractionStep(52, "AI extracting policy details...");
+      startExtractionProgressDrift(88);
       const res = await sendExtractionRequest(file, clientResult);
       const body = await res.json();
+      stopExtractionProgressTimer();
+      setExtractionStep(92, "Finalizing extracted fields...");
 
       if (!res.ok || !isExtractionDataValid(body?.data)) {
         const msg =
@@ -1018,13 +1063,18 @@ export default function NewCustomerForm() {
 
       // Success — auto-fill
       autoFillForm(body.data as Record<string, unknown>);
+      setExtractionStep(100, "Extraction complete");
+      await new Promise((resolve) => window.setTimeout(resolve, 180));
     } catch (err: any) {
       console.error("[Extraction Error]", err);
       setExtractionError(err?.message || "Extraction failed — check your connection or file and try again");
       setSelectedFileName("");
       if (fileInputRef.current) fileInputRef.current.value = "";
     } finally {
+      stopExtractionProgressTimer();
       setIsExtracting(false);
+      setExtractionProgress(0);
+      setExtractionStageLabel("");
     }
   }
 
@@ -1058,6 +1108,9 @@ export default function NewCustomerForm() {
     setExtractionError("");
     setSelectedFileName("");
     setIsExtracting(false);
+    setExtractionProgress(0);
+    setExtractionStageLabel("");
+    stopExtractionProgressTimer();
     if (fileInputRef.current) fileInputRef.current.value = "";
     setEntryMode(mode);
   }
@@ -1569,6 +1622,36 @@ export default function NewCustomerForm() {
                   </div>
                   <div style={{ fontSize: 12, color: "var(--text-muted)" }}>
                     {selectedFileName}
+                  </div>
+                  <div
+                    style={{
+                      marginTop: 14,
+                      width: "100%",
+                      height: 8,
+                      borderRadius: 999,
+                      background: "var(--bg)",
+                      overflow: "hidden",
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: `${Math.max(0, Math.min(100, extractionProgress))}%`,
+                        height: "100%",
+                        borderRadius: 999,
+                        background:
+                          "linear-gradient(90deg, var(--primary), #3ea0ff)",
+                        transition: "width .25s ease",
+                      }}
+                    />
+                  </div>
+                  <div
+                    style={{
+                      marginTop: 8,
+                      fontSize: 11.5,
+                      color: "var(--text-muted)",
+                    }}
+                  >
+                    {Math.round(extractionProgress)}%
                   </div>
                   <div
                     style={{
@@ -2597,7 +2680,7 @@ export default function NewCustomerForm() {
                 className="form-section-title"
                 style={{ color: "var(--marine)" }}
               >
-                🚢 Marine Insurance Details
+                Marine Insurance Details
               </div>
               <div className="form-grid">
                 <Field

@@ -17,6 +17,7 @@ const AgentSchema = new mongoose.Schema({
     type: String,
     required: [true, 'Password is required'],
     minlength: [6, 'Password must be at least 6 characters'],
+    select: false, // Exclude password from query results by default
   },
   agencyName: {
     type: String,
@@ -74,6 +75,15 @@ const AgentSchema = new mongoose.Schema({
     default: Date.now,
   },
 });
+
+AgentSchema.index(
+  { verificationToken: 1, verificationTokenExpires: 1 },
+  {
+    partialFilterExpression: {
+      verificationToken: { $exists: true, $ne: null },
+    },
+  }
+);
 
 // Prevent model recompilation during Next.js hot reloads
 export default mongoose.models.Agent || mongoose.model('Agent', AgentSchema);

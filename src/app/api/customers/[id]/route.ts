@@ -165,8 +165,23 @@ export async function PUT(req: NextRequest, { params }: Params) {
     updatedAt: new Date(),
   });
 
+  try {
   await customer.save();
   return NextResponse.json(customer);
+} catch (error: any) {
+  if (
+    error?.code === 11000 &&
+    error?.keyPattern?.agentId &&
+    error?.keyPattern?.policyNumber
+  ) {
+    return NextResponse.json(
+      { error: `Policy number "${policyNumber}" already exists.` },
+      { status: 409 }
+    );
+  }
+
+  return NextResponse.json({ error: "Failed to update customer" }, { status: 500 });
+}
 }
 
 // ── DELETE /api/customers/[id] ─────────────────────────────────────────────────
