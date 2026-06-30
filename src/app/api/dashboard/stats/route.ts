@@ -5,7 +5,7 @@ import { connectDB } from '@/lib/mongodb';
 import Customer from '@/models/Customer';
 
 // ── GET /api/dashboard/stats ───────────────────────────────────────────────────
-export async function GET() {
+export async function GET(request: Request) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -14,6 +14,16 @@ export async function GET() {
   await connectDB();
 
   const agentId = session.user.id;
+  const { searchParams } = new URL(request.url);
+  const from = searchParams.get('from');
+  const to = searchParams.get('to');
+  const premiumMatch: Record<string, unknown> = {
+    agentId: new (await import('mongoose')).Types.ObjectId(agentId),
+  };
+  const startDate: Record<string, string> = {};
+  if (from) startDate.$gte = from;
+  if (to) startDate.$lte = to;
+  if (Object.keys(startDate).length) premiumMatch.startDate = startDate;
   const today   = new Date();
   today.setHours(0, 0, 0, 0);
   const todayStr = today.toISOString().split('T')[0];
@@ -49,8 +59,8 @@ export async function GET() {
 
     // 4. Total premium
     Customer.aggregate([
-      { $match: { agentId: new (await import('mongoose')).Types.ObjectId(agentId) } },
-      { $group: { _id: null, total: { $sum: { $toDouble: '$premiumAmount' } } } },
+      { $match: premiumMatch },
+      { $group: { _id: null, total: { $sum: { $convert: { input: '$premiumAmount', to: 'double', onError: 0, onNull: 0 } } } } },
     ]),
 
     // 5. Recent 5 customers

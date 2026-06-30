@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/authOptions";
 import { connectDB } from "@/lib/mongodb";
 import Customer from "@/models/Customer";
+import Company from "@/models/Company";
 import FamilyGroup from "@/models/FamilyGroup";
 import ReferralMember from "@/models/ReferralMember";
 import { customerUpdateSchema } from "@/lib/validations";
@@ -23,6 +24,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
     _id: id,
     agentId: session.user.id,
   })
+    .populate("companyId", "name")
     .populate("familyGroupId", "familyName primaryPolicyholderName")
     .populate("referredById", "name phone email")
     .lean();
@@ -78,6 +80,7 @@ export async function PUT(req: NextRequest, { params }: Params) {
     email,
     address,
     policyNumber,
+    companyId,
     premiumAmount,
     premiumWithoutGst,
     sumInsured,
@@ -128,6 +131,16 @@ export async function PUT(req: NextRequest, { params }: Params) {
     }
   }
 
+  if (companyId) {
+    const company = await Company.findOne({
+      _id: companyId,
+      agentId: session.user.id,
+    });
+    if (!company) {
+      return NextResponse.json({ error: "Company not found" }, { status: 404 });
+    }
+  }
+
   if (referredById) {
     const referral = await ReferralMember.findOne({
       _id: referredById,
@@ -145,6 +158,7 @@ export async function PUT(req: NextRequest, { params }: Params) {
     email: email ?? customer.email,
     address: address ?? customer.address,
     ...(policyNumber && { policyNumber }),
+    companyId: companyId || customer.companyId || null,
     ...(premiumAmount && { premiumAmount }),
     premiumWithoutGst: premiumWithoutGst ?? customer.premiumWithoutGst ?? "",
     sumInsured: sumInsured ?? customer.sumInsured ?? "",

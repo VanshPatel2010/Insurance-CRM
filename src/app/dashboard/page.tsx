@@ -21,6 +21,9 @@ async function getDashboardData(agentIdStr: string) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const in30 = new Date(today.getTime() + 30 * 24 * 60 * 60 * 1000);
+  const currentYear = today.getFullYear();
+  const premiumStart = `${currentYear}-01-01`;
+  const premiumEnd = `${currentYear}-12-31`;
 
   const [total, typeCounts, expiring, premiumAgg, recent] = await Promise.all([
     Customer.countDocuments({ agentId }),
@@ -39,9 +42,9 @@ async function getDashboardData(agentIdStr: string) {
       .limit(10)
       .lean(),
     Customer.aggregate([
-      { $match: { agentId } },
+      { $match: { agentId, startDate: { $gte: premiumStart, $lte: premiumEnd } } },
       {
-        $group: { _id: null, total: { $sum: { $toDouble: "$premiumAmount" } } },
+        $group: { _id: null, total: { $sum: { $convert: { input: "$premiumAmount", to: "double", onError: 0, onNull: 0 } } } },
       },
     ]),
     Customer.find({ agentId }).sort({ createdAt: -1 }).limit(8).lean(),

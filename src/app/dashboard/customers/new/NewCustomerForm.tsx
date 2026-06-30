@@ -9,8 +9,11 @@ import {
   getFamilyGroups,
   createFamilyGroup,
   getReferrals,
+  getCompanies,
+  createCompany,
   FamilyGroupDoc,
   ReferralMemberDoc,
+  CompanyDoc,
 } from "@/lib/storage";
 import {
   COUNTRY_CALLING_CODES,
@@ -160,6 +163,7 @@ const emptyBase = () => ({
   email: "",
   address: "",
   policyNumber: "",
+  companyId: "",
   sumInsured: "",
   premiumAmount: "",
   premiumWithoutGst: "",
@@ -470,6 +474,13 @@ export default function NewCustomerForm() {
   const [travel, setTravel] = useState(emptyTravel());
   const [familyGroups, setFamilyGroups] = useState<FamilyGroupDoc[]>([]);
   const [referrals, setReferrals] = useState<ReferralMemberDoc[]>([]);
+  const [companies, setCompanies] = useState<CompanyDoc[]>([]);
+  const [companyForm, setCompanyForm] = useState({
+    isAdding: false,
+    name: "",
+    saving: false,
+    error: "",
+  });
   const [family, setFamily] = useState({
     mode: "none" as "none" | "existing" | "new",
     familyGroupId: "",
@@ -556,10 +567,11 @@ export default function NewCustomerForm() {
   }, []);
 
   useEffect(() => {
-    Promise.all([getFamilyGroups(), getReferrals()])
-      .then(([familyData, referralData]) => {
+    Promise.all([getFamilyGroups(), getReferrals(), getCompanies()])
+      .then(([familyData, referralData, companyData]) => {
         setFamilyGroups(familyData.familyGroups);
         setReferrals(referralData.referrals);
+        setCompanies(companyData.companies);
       })
       .catch((err) => {
         // eslint-disable-next-line no-console
@@ -586,6 +598,10 @@ export default function NewCustomerForm() {
           email: String(p.email ?? ""),
           address: String(p.address ?? ""),
           policyNumber: String(p.policyNumber ?? ""),
+          companyId:
+            typeof p.companyId === "object"
+              ? String(p.companyId?._id ?? "")
+              : String(p.companyId ?? ""),
           sumInsured: String(p.sumInsured ?? ""),
           premiumAmount: String(p.premiumAmount ?? ""),
           premiumWithoutGst: String(p.premiumWithoutGst ?? p.premiumAmount ?? ""),
@@ -787,6 +803,7 @@ export default function NewCustomerForm() {
       email: String(data.email ?? ""),
       address: String(data.address ?? ""),
       policyNumber: String(data.policyNumber ?? ""),
+      companyId: "",
       sumInsured: data.sumInsured != null ? String(data.sumInsured) : "",
       premiumAmount: data.premium != null ? String(data.premium) : "",
       premiumWithoutGst: String(
@@ -1163,6 +1180,7 @@ export default function NewCustomerForm() {
       e.phone = "Enter a valid contact number";
     if (base.email && !base.email.includes("@")) e.email = "Invalid email";
     if (!base.policyNumber.trim()) e.policyNumber = "Required";
+    if (!base.companyId.trim()) e.companyId = "Required";
     if (!base.premiumAmount || isNaN(Number(base.premiumAmount)))
       e.premiumAmount = "Enter a valid amount";
     const isPackageMotor =
@@ -1368,6 +1386,7 @@ export default function NewCustomerForm() {
         await updateCustomer(editId, payload);
         queryClient.invalidateQueries({ queryKey: ["customers"] });
         queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
+        queryClient.invalidateQueries({ queryKey: ["company-premium-summary"] });
         queryClient.invalidateQueries({ queryKey: ["family-groups"] });
         queryClient.invalidateQueries({ queryKey: ["referrals"] });
         router.push(`/dashboard/customers/${editId}`);
@@ -1375,6 +1394,7 @@ export default function NewCustomerForm() {
         const created = await saveCustomer(payload);
         queryClient.invalidateQueries({ queryKey: ["customers"] });
         queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
+        queryClient.invalidateQueries({ queryKey: ["company-premium-summary"] });
         queryClient.invalidateQueries({ queryKey: ["family-groups"] });
         queryClient.invalidateQueries({ queryKey: ["referrals"] });
         router.push(`/dashboard/customers/${created._id}`);
@@ -1404,6 +1424,29 @@ export default function NewCustomerForm() {
         return x;
       });
     };
+
+  async function handleCreateCompany() {
+    const name = companyForm.name.trim();
+    if (!name) {
+      setCompanyForm((form) => ({ ...form, error: "Company name is required" }));
+      return;
+    }
+
+    setCompanyForm((form) => ({ ...form, saving: true, error: "" }));
+    try {
+      const created = await createCompany({ name });
+      const refreshed = await getCompanies();
+      setCompanies(refreshed.companies);
+      setBase((current) => ({ ...current, companyId: created._id }));
+      setCompanyForm({ isAdding: false, name: "", saving: false, error: "" });
+    } catch (err) {
+      setCompanyForm((form) => ({
+        ...form,
+        saving: false,
+        error: err instanceof Error ? err.message : "Failed to create company",
+      }));
+    }
+  }
 
   function syncMembers(count: string) {
     const n = Math.max(1, parseInt(count) || 1);
@@ -3343,6 +3386,79 @@ export default function NewCustomerForm() {
                   onChange={upBase("policyNumber")}
                   placeholder="Policy/Certificate number"
                 />
+              </Field>
+              <Field
+                label="Insurance Company"
+                name="companyId"
+                required
+                error={errors.companyId}
+              >
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <select
+                      id="companyId"
+                      className={`form-control ${errors.companyId ? "error" : ""}`}
+                      value={base.companyId}
+                      onChange={(e) => {
+                        setBase((b) => ({ ...b, companyId: e.target.value }));
+                        setErrors((err) => {
+                          const next = { ...err };
+                          delete next.companyId;
+                          return next;
+                        });
+                      }}
+                    >
+                      <option value="">Choose company</option>
+                      {companies.map((company) => (
+                        <option key={company._id} value={company._id}>
+                          {company.name}
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      type="button"
+                      className="btn btn-outline btn-sm"
+                      onClick={() =>
+                        setCompanyForm((form) => ({
+                          ...form,
+                          isAdding: !form.isAdding,
+                          error: "",
+                        }))
+                      }
+                      style={{ whiteSpace: "nowrap" }}
+                    >
+                      {companyForm.isAdding ? "Cancel" : "Add"}
+                    </button>
+                  </div>
+                  {companyForm.isAdding && (
+                    <div style={{ display: "flex", gap: 8 }}>
+                      <input
+                        className="form-control"
+                        value={companyForm.name}
+                        onChange={(e) =>
+                          setCompanyForm((form) => ({
+                            ...form,
+                            name: e.target.value,
+                            error: "",
+                          }))
+                        }
+                        placeholder="Company name"
+                      />
+                      <button
+                        type="button"
+                        className="btn btn-primary btn-sm"
+                        onClick={handleCreateCompany}
+                        disabled={companyForm.saving}
+                        style={{ whiteSpace: "nowrap" }}
+                      >
+                        {companyForm.saving ? "Adding..." : "Save"}
+                      </button>
+                    </div>
+                  )}
+                  {companyForm.error && (
+                    <span className="form-error">{companyForm.error}</span>
+                  )}
+                </div>
               </Field>
               <Field label="Sum Insured (₹)" name="sumInsured">
                 <input

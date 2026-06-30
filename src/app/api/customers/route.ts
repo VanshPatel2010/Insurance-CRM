@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/authOptions";
 import { connectDB } from "@/lib/mongodb";
 import Customer from "@/models/Customer";
+import Company from "@/models/Company";
 import FamilyGroup from "@/models/FamilyGroup";
 import ReferralMember from "@/models/ReferralMember";
 import { customerSchema, escapeRegExp } from "@/lib/validations";
@@ -66,7 +67,7 @@ export async function GET(req: NextRequest) {
   const skip = (page - 1) * limit;
 
   const CUSTOMER_LIST_FIELDS =
-    "_id customerName type policyNumber premiumAmount endDate familyGroupId familyMemberName familyRelationship createdAt";
+    "_id customerName type policyNumber companyId premiumAmount endDate familyGroupId familyMemberName familyRelationship createdAt";
 
   const [total, customers] = await Promise.all([
     Customer.countDocuments(filter),
@@ -135,6 +136,7 @@ export async function POST(req: NextRequest) {
     email,
     address,
     policyNumber,
+    companyId,
     premiumAmount,
     premiumWithoutGst,
     sumInsured,
@@ -165,6 +167,18 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  if (!companyId) {
+    return NextResponse.json({ error: "Company is required" }, { status: 400 });
+  }
+
+  const company = await Company.findOne({
+    _id: companyId,
+    agentId: session.user.id,
+  });
+  if (!company) {
+    return NextResponse.json({ error: "Company not found" }, { status: 404 });
+  }
+
   if (referredById) {
     const referral = await ReferralMember.findOne({
       _id: referredById,
@@ -184,6 +198,7 @@ export async function POST(req: NextRequest) {
     email: email ?? "",
     address: address ?? "",
     policyNumber,
+    companyId,
     premiumAmount,
     premiumWithoutGst: premiumWithoutGst ?? "",
     sumInsured: sumInsured ?? "",

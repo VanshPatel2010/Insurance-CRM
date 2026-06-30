@@ -37,6 +37,7 @@ export interface CustomerDoc {
   email: string;
   address: string;
   policyNumber: string;
+  companyId?: string | { _id: string; name: string } | null;
   premiumAmount: string;
   premiumWithoutGst?: string;
   sumInsured: string;
@@ -94,6 +95,22 @@ export interface ReferralMemberDoc {
   paymentReceivedFromReferral?: number;
   paymentSentToReferral?: number;
   netAmount?: number;
+}
+
+export interface CompanyDoc {
+  _id: string;
+  agentId: string;
+  name: string;
+  normalizedName: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CompanyPremiumSummaryRow {
+  companyId: string | null;
+  companyName: string;
+  policyCount: number;
+  totalPremium: number;
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -184,6 +201,46 @@ export async function getDashboardStats(): Promise<DashboardStats> {
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     throw new Error(err.error ?? 'Failed to fetch dashboard stats');
+  }
+  return res.json();
+}
+
+export async function getCompanies(): Promise<{ companies: CompanyDoc[] }> {
+  const res = await fetch('/api/companies');
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error ?? 'Failed to fetch companies');
+  }
+  return res.json();
+}
+
+export async function createCompany(
+  data: { name: string }
+): Promise<CompanyDoc> {
+  const res = await fetch('/api/companies', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error ?? 'Failed to create company');
+  }
+  return res.json();
+}
+
+export async function getCompanyPremiumSummary(filters: {
+  from?: string;
+  to?: string;
+} = {}): Promise<{ rows: CompanyPremiumSummaryRow[] }> {
+  const params = new URLSearchParams();
+  if (filters.from) params.set('from', filters.from);
+  if (filters.to) params.set('to', filters.to);
+
+  const res = await fetch(`/api/companies/premium-summary?${params.toString()}`);
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error ?? 'Failed to fetch company premium summary');
   }
   return res.json();
 }

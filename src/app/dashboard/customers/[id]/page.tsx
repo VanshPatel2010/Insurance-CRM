@@ -129,6 +129,10 @@ export default function CustomerDetailPage() {
     policy.familyGroupId && typeof policy.familyGroupId === "object"
       ? policy.familyGroupId
       : null;
+  const company =
+    policy.companyId && typeof policy.companyId === "object"
+      ? policy.companyId
+      : null;
   const referredBy =
     policy.referredById && typeof policy.referredById === "object"
       ? policy.referredById
@@ -670,6 +674,7 @@ export default function CustomerDetailPage() {
           <div className="card-body">
             <div className="detail-grid">
               <Field label="Policy Number" value={policy.policyNumber} />
+              <Field label="Insurance Company" value={company?.name} />
               <Field
                 label="Sum Insured"
                 value={formatCurrency(policy.sumInsured)}

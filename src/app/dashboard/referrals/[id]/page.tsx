@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { ArrowLeft, Download } from "lucide-react";
+import { ArrowLeft, Download, X } from "lucide-react";
 import PolicyBadge from "@/components/PolicyBadge";
 import {
   getReferralDetail,
@@ -10,6 +10,7 @@ import {
   updateReferralCommissions,
 } from "@/lib/storage";
 import { formatCurrency, formatDate } from "@/lib/utils";
+import { summarizeReferralPolicies } from "@/lib/referralMath";
 
 type PolicyRow = Awaited<ReturnType<typeof getReferralDetail>>["policies"][number];
 
@@ -36,16 +37,6 @@ export default function ReferralDetailPage() {
   const id = params.id as string;
   const [referral, setReferral] = useState<ReferralMemberDoc | null>(null);
   const [policies, setPolicies] = useState<PolicyRow[]>([]);
-  const [summary, setSummary] = useState({
-    totalReferred: 0,
-    totalCommission: 0,
-    pendingCommission: 0,
-    paidCommission: 0,
-    premiumPaidByAgency: 0,
-    paymentReceivedFromReferral: 0,
-    paymentSentToReferral: 0,
-    netAmount: 0,
-  });
   const [updatingPolicyIds, setUpdatingPolicyIds] = useState<string[]>([]);
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
@@ -59,7 +50,6 @@ export default function ReferralDetailPage() {
       const data = await getReferralDetail(id);
       setReferral(data.referral);
       setPolicies(data.policies);
-      setSummary(data.summary);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load referral");
     } finally {
@@ -80,6 +70,13 @@ export default function ReferralDetailPage() {
         return true;
       }),
     [policies, fromDate, toDate],
+  );
+  const reportSummary = useMemo(
+    () => ({
+      ...summarizeReferralPolicies(reportPolicies),
+      totalReferred: reportPolicies.length,
+    }),
+    [reportPolicies],
   );
 
   async function toggleCommissionStatus(policyId: string, checked: boolean) {
@@ -165,22 +162,33 @@ export default function ReferralDetailPage() {
       </div>
 
       <div className="stat-grid" style={{ marginBottom: 20 }}>
-        <div className="stat-card"><div className="stat-card-value">{summary.totalReferred}</div><div className="stat-card-label">Total Referred</div></div>
-        <div className="stat-card"><div className="stat-card-value">{formatCurrency(summary.totalCommission)}</div><div className="stat-card-label">Total Commission</div></div>
-        <div className="stat-card"><div className="stat-card-value">{formatCurrency(summary.pendingCommission)}</div><div className="stat-card-label">Pending</div></div>
-        <div className="stat-card"><div className="stat-card-value">{formatCurrency(summary.paidCommission)}</div><div className="stat-card-label">Paid</div></div>
-        <div className="stat-card"><div className="stat-card-value">{formatCurrency(summary.netAmount)}</div><div className="stat-card-label">Net Amount</div></div>
+        <div className="stat-card"><div className="stat-card-value">{reportSummary.totalReferred}</div><div className="stat-card-label">Total Referred</div></div>
+        <div className="stat-card"><div className="stat-card-value">{formatCurrency(reportSummary.totalCommission)}</div><div className="stat-card-label">Total Commission</div></div>
+        <div className="stat-card"><div className="stat-card-value">{formatCurrency(reportSummary.pendingCommission)}</div><div className="stat-card-label">Pending</div></div>
+        <div className="stat-card"><div className="stat-card-value">{formatCurrency(reportSummary.paidCommission)}</div><div className="stat-card-label">Paid</div></div>
+        <div className="stat-card"><div className="stat-card-value">{formatCurrency(reportSummary.netAmount)}</div><div className="stat-card-label">Net Amount</div></div>
       </div>
 
       <div className="stat-grid" style={{ marginBottom: 20 }}>
-        <div className="stat-card"><div className="stat-card-value">{formatCurrency(summary.premiumPaidByAgency)}</div><div className="stat-card-label">Agency Paid Premium</div></div>
-        <div className="stat-card"><div className="stat-card-value">{formatCurrency(summary.paymentReceivedFromReferral)}</div><div className="stat-card-label">Received From Referral</div></div>
-        <div className="stat-card"><div className="stat-card-value">{formatCurrency(summary.paymentSentToReferral)}</div><div className="stat-card-label">Sent To Referral</div></div>
+        <div className="stat-card"><div className="stat-card-value">{formatCurrency(reportSummary.premiumPaidByAgency)}</div><div className="stat-card-label">Agency Paid Premium</div></div>
+        <div className="stat-card"><div className="stat-card-value">{formatCurrency(reportSummary.paymentReceivedFromReferral)}</div><div className="stat-card-label">Received From Referral</div></div>
+        <div className="stat-card"><div className="stat-card-value">{formatCurrency(reportSummary.paymentSentToReferral)}</div><div className="stat-card-label">Sent To Referral</div></div>
       </div>
 
       <div className="filter-bar">
         <input className="form-control" style={{ maxWidth: 180 }} type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
         <input className="form-control" style={{ maxWidth: 180 }} type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} />
+        {(fromDate || toDate) && (
+          <button
+            className="btn btn-ghost btn-sm"
+            onClick={() => {
+              setFromDate("");
+              setToDate("");
+            }}
+          >
+            <X size={14} /> Clear
+          </button>
+        )}
         <button className="btn btn-outline btn-sm" onClick={downloadCsv}>
           <Download size={14} /> Download Report
         </button>
@@ -205,7 +213,7 @@ export default function ReferralDetailPage() {
             </tr>
           </thead>
           <tbody>
-            {policies.map((policy) => (
+            {reportPolicies.map((policy) => (
               <tr key={policy._id}>
                 <td>
                   <input
@@ -243,6 +251,13 @@ export default function ReferralDetailPage() {
                 <td>{formatDate(policy.startDate)}</td>
               </tr>
             ))}
+            {reportPolicies.length === 0 && (
+              <tr>
+                <td colSpan={12} style={{ textAlign: "center", color: "var(--text-muted)" }}>
+                  No policies found for this date range.
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>

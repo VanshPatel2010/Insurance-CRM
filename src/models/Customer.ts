@@ -19,6 +19,12 @@ const CustomerSchema = new mongoose.Schema({
   email: { type: String, trim: true, default: '' },
   address: { type: String, trim: true, default: '' },
   policyNumber: { type: String, required: true, trim: true },
+  companyId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Company',
+    default: null,
+    index: true,
+  },
   premiumAmount: { type: String, required: true },
   premiumWithoutGst: { type: String, default: '' },
   sumInsured: { type: String, default: '' },
@@ -87,6 +93,8 @@ const CustomerSchema = new mongoose.Schema({
 // Compound indexes for fast, scoped queries
 CustomerSchema.index({ agentId: 1, type: 1 });
 CustomerSchema.index({ agentId: 1, endDate: 1 });
+CustomerSchema.index({ agentId: 1, startDate: 1 });
+CustomerSchema.index({ agentId: 1, companyId: 1 });
 CustomerSchema.index({ agentId: 1, createdAt: -1 });
 CustomerSchema.index({ agentId: 1, policyNumber: 1 }, { unique: true });
 CustomerSchema.index({ agentId: 1, familyGroupId: 1 });

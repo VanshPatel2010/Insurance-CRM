@@ -50,8 +50,12 @@ const typeConfig: Record<
   travel: { label: "Travel", icon: Plane, color: "#0891b2", bg: "#ecf7fa" },
 };
 
-async function fetchDashboardStats() {
-  const res = await fetch("/api/dashboard/stats");
+async function fetchDashboardStats(range?: { from?: string; to?: string }) {
+  const params = new URLSearchParams();
+  if (range?.from) params.set("from", range.from);
+  if (range?.to) params.set("to", range.to);
+  const query = params.toString();
+  const res = await fetch(`/api/dashboard/stats${query ? `?${query}` : ""}`);
   if (!res.ok) throw new Error("Failed to fetch dashboard data");
   const data = await res.json();
   const serializedExpiring = (data.expiring || []).map((p: any) => ({
@@ -67,14 +71,22 @@ async function fetchDashboardStats() {
 }
 
 export default function DashboardClient({ initialData }: { initialData: any }) {
+  const currentYear = new Date().getFullYear();
   const [data, setData] = useState(initialData);
+  const [premiumRangeMode, setPremiumRangeMode] = useState("current-year");
+  const [premiumRange, setPremiumRange] = useState({
+    from: `${currentYear}-01-01`,
+    to: `${currentYear}-12-31`,
+  });
   const [isFetching, setIsFetching] = useState(false);
   const [dataUpdatedAt, setDataUpdatedAt] = useState<number | null>(null);
 
-  const refetch = useCallback(async () => {
+  const refetch = useCallback(async (range = premiumRange) => {
     setIsFetching(true);
     try {
-      const fresh = await fetchDashboardStats();
+      const fresh = await fetchDashboardStats(
+        premiumRangeMode === "all-time" ? undefined : range,
+      );
       setData(fresh);
       setDataUpdatedAt(Date.now());
     } catch (err) {
@@ -82,7 +94,23 @@ export default function DashboardClient({ initialData }: { initialData: any }) {
     } finally {
       setIsFetching(false);
     }
-  }, []);
+  }, [premiumRange, premiumRangeMode]);
+
+  const changePremiumRange = useCallback(async (mode: string) => {
+    setPremiumRangeMode(mode);
+    let range = premiumRange;
+    if (mode === "current-year") range = { from: `${currentYear}-01-01`, to: `${currentYear}-12-31` };
+    if (mode === "previous-year") range = { from: `${currentYear - 1}-01-01`, to: `${currentYear - 1}-12-31` };
+    if (mode !== "all-time" && mode !== "custom") setPremiumRange(range);
+    setIsFetching(true);
+    try {
+      const fresh = await fetchDashboardStats(mode === "all-time" ? undefined : range);
+      setData(fresh);
+      setDataUpdatedAt(Date.now());
+    } finally {
+      setIsFetching(false);
+    }
+  }, [currentYear, premiumRange]);
 
   const { total, typeCountMap, expiring, totalPremium, recent } = data;
 
@@ -208,6 +236,38 @@ export default function DashboardClient({ initialData }: { initialData: any }) {
             {formatCurrency(totalPremium)}
           </div>
           <div className="stat-card-label">Total Premium</div>
+          <select
+            className="form-select"
+            aria-label="Premium duration"
+            value={premiumRangeMode}
+            onChange={(event) => changePremiumRange(event.target.value)}
+            style={{ marginTop: 10, fontSize: 12, padding: "5px 8px" }}
+          >
+            <option value="current-year">Current Year</option>
+            <option value="previous-year">Previous Year</option>
+            <option value="all-time">All Time</option>
+            <option value="custom">Custom Range</option>
+          </select>
+          {premiumRangeMode === "custom" && (
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, marginTop: 8 }}>
+              <input
+                type="date"
+                className="form-input"
+                aria-label="Premium from date"
+                value={premiumRange.from}
+                onChange={(event) => setPremiumRange((range) => ({ ...range, from: event.target.value }))}
+                onBlur={() => refetch()}
+              />
+              <input
+                type="date"
+                className="form-input"
+                aria-label="Premium to date"
+                value={premiumRange.to}
+                onChange={(event) => setPremiumRange((range) => ({ ...range, to: event.target.value }))}
+                onBlur={() => refetch()}
+              />
+            </div>
+          )}
         </div>
 
         {/* Expiring Soon */}

@@ -2,7 +2,12 @@
 import { useState, useRef } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { getAllCustomers, deleteCustomer, CustomerDoc } from "@/lib/storage";
+import {
+  getAllCustomers,
+  deleteCustomer,
+  getCompanyPremiumSummary,
+  CustomerDoc,
+} from "@/lib/storage";
 import { getStatus, formatCurrency, formatDate } from "@/lib/utils";
 import { PolicyType } from "@/lib/types";
 import PolicyBadge from "@/components/PolicyBadge";
@@ -19,12 +24,23 @@ import {
   ChevronRight,
   RefreshCw,
   Users,
+  Building2,
 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { formatDistanceToNow } from "date-fns";
 
 type FilterType = "all" | PolicyType;
 type FilterStatus = "all" | "Active" | "Expired" | "Expiring Soon";
+type PremiumRangeMode = "current-year" | "previous-year" | "all-time" | "custom";
+
+const CURRENT_YEAR = new Date().getFullYear();
+
+function yearRange(year: number) {
+  return {
+    from: `${year}-01-01`,
+    to: `${year}-12-31`,
+  };
+}
 
 export default function CustomersContent() {
   const searchParams = useSearchParams();
@@ -36,6 +52,9 @@ export default function CustomersContent() {
   const [statusFilter, setStatusFilter] = useState<FilterStatus>(
     searchParams.get("filter") === "expiring" ? "Expiring Soon" : "all",
   );
+  const [premiumRangeMode, setPremiumRangeMode] =
+    useState<PremiumRangeMode>("current-year");
+  const [premiumRange, setPremiumRange] = useState(yearRange(CURRENT_YEAR));
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [groupByFamily, setGroupByFamily] = useState(false);
 
@@ -73,6 +92,23 @@ export default function CustomersContent() {
       staleTime: Infinity, // On-Demand Caching
     },
   );
+
+  const companySummaryQuery = useQuery({
+    queryKey: [
+      "company-premium-summary",
+      {
+        from: premiumRangeMode === "all-time" ? "" : premiumRange.from,
+        to: premiumRangeMode === "all-time" ? "" : premiumRange.to,
+      },
+    ],
+    queryFn: () =>
+      getCompanyPremiumSummary(
+        premiumRangeMode === "all-time"
+          ? {}
+          : { from: premiumRange.from, to: premiumRange.to },
+      ),
+    staleTime: 60_000,
+  });
 
   const mutation = useMutation({
     mutationFn: deleteCustomer,
@@ -115,9 +151,16 @@ export default function CustomersContent() {
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["customers"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
+      queryClient.invalidateQueries({ queryKey: ["company-premium-summary"] });
       setDeleteConfirm(null);
     },
   });
+
+  function setQuickPremiumRange(mode: PremiumRangeMode) {
+    setPremiumRangeMode(mode);
+    if (mode === "current-year") setPremiumRange(yearRange(CURRENT_YEAR));
+    if (mode === "previous-year") setPremiumRange(yearRange(CURRENT_YEAR - 1));
+  }
 
   function handleDelete(id: string) {
     mutation.mutate(id);
@@ -196,6 +239,102 @@ export default function CustomersContent() {
         </div>
       </div>
 
+      <div className="card" style={{ marginBottom: 18 }}>
+        <div className="card-header">
+          <span className="card-title">
+            <Building2 size={15} style={{ color: "var(--primary)" }} />
+            Premium by Company
+          </span>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <button
+              className={`btn btn-sm ${premiumRangeMode === "current-year" ? "btn-primary" : "btn-ghost"}`}
+              onClick={() => setQuickPremiumRange("current-year")}
+            >
+              Current Year
+            </button>
+            <button
+              className={`btn btn-sm ${premiumRangeMode === "previous-year" ? "btn-primary" : "btn-ghost"}`}
+              onClick={() => setQuickPremiumRange("previous-year")}
+            >
+              Previous Year
+            </button>
+            <button
+              className={`btn btn-sm ${premiumRangeMode === "all-time" ? "btn-primary" : "btn-ghost"}`}
+              onClick={() => setQuickPremiumRange("all-time")}
+            >
+              All Time
+            </button>
+            <button
+              className={`btn btn-sm ${premiumRangeMode === "custom" ? "btn-primary" : "btn-ghost"}`}
+              onClick={() => setPremiumRangeMode("custom")}
+            >
+              Custom
+            </button>
+          </div>
+        </div>
+        <div className="card-body">
+          {premiumRangeMode !== "all-time" && (
+            <div className="filter-bar" style={{ marginBottom: 14 }}>
+              <input
+                className="form-control"
+                style={{ maxWidth: 180 }}
+                type="date"
+                value={premiumRange.from}
+                onChange={(e) => {
+                  setPremiumRangeMode("custom");
+                  setPremiumRange((range) => ({ ...range, from: e.target.value }));
+                }}
+              />
+              <input
+                className="form-control"
+                style={{ maxWidth: 180 }}
+                type="date"
+                value={premiumRange.to}
+                onChange={(e) => {
+                  setPremiumRangeMode("custom");
+                  setPremiumRange((range) => ({ ...range, to: e.target.value }));
+                }}
+              />
+            </div>
+          )}
+          {companySummaryQuery.isFetching && !companySummaryQuery.data ? (
+            <div style={{ color: "var(--text-muted)", padding: "10px 0" }}>
+              Loading company premium summary...
+            </div>
+          ) : companySummaryQuery.isError ? (
+            <div className="alert alert-danger">
+              {(companySummaryQuery.error as Error)?.message ||
+                "Failed to load company premium summary"}
+            </div>
+          ) : companySummaryQuery.data?.rows.length === 0 ? (
+            <div style={{ color: "var(--text-muted)", padding: "10px 0" }}>
+              No premium found for this duration.
+            </div>
+          ) : (
+            <div className="table-wrapper">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Company</th>
+                    <th>Policies</th>
+                    <th>Total Premium</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {companySummaryQuery.data?.rows.map((row) => (
+                    <tr key={row.companyId ?? "unassigned"}>
+                      <td className="td-name">{row.companyName}</td>
+                      <td>{row.policyCount}</td>
+                      <td>{formatCurrency(row.totalPremium)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </div>
+
       {/* Filter Bar */}
       <div className="filter-bar">
         <div className="search-input-wrapper">
@@ -227,6 +366,7 @@ export default function CustomersContent() {
           <option value="personal-accident">Personal Accident</option>
           <option value="marine">Marine Insurance</option>
           <option value="workman-compensation">Workman Compensation</option>
+          <option value="travel">Travel</option>
         </select>
 
         <select

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { connectDB } from '@/lib/mongodb';
 import Agent from '@/models/Agent';
+import { getAppBaseUrl } from '@/lib/email';
 
 export async function GET(request) {
   try {
@@ -36,7 +37,7 @@ export async function GET(request) {
     await agent.save();
 
     // Redirect to login page with a success message
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL || 'http://localhost:3000';
+    const baseUrl = getAppBaseUrl(request);
     return NextResponse.redirect(`${baseUrl}/login?verified=true`);
   } catch (error) {
     console.error('[Verify Email Error]', error);

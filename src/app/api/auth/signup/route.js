@@ -65,7 +65,7 @@ export async function POST(request) {
     });
 
     // ── 6. Send verification email ───────────────────────────────────────────
-    await sendVerificationEmail(agent.email, verificationToken);
+    await sendVerificationEmail(agent.email, verificationToken, request);
 
     // ── 7. Return success (never expose the hashed password) ─────────────────
     return NextResponse.json(
