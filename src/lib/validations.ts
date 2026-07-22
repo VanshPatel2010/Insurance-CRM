@@ -18,6 +18,7 @@ export const customerSchema = z.object({
   email: z.string().email("Invalid email").or(z.literal("")).optional(),
   address: z.string().trim().optional(),
   policyNumber: z.string().min(1, "Policy number is required").trim(),
+  companyId: z.string().trim().optional(),
   premiumAmount: z.union([z.string(), z.number()]).transform((val) => String(val)),
   premiumWithoutGst: z.union([z.string(), z.number()]).transform((val) => String(val)).optional(),
   sumInsured: z.union([z.string(), z.number()]).transform((val) => String(val)).optional(),

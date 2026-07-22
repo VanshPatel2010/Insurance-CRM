@@ -1,6 +1,31 @@
 import nodemailer from 'nodemailer';
 
-export async function sendVerificationEmail(email, token) {
+export function getAppBaseUrl(request) {
+  const explicitUrl =
+    process.env.NEXT_PUBLIC_APP_URL ||
+    process.env.APP_URL;
+
+  const vercelUrl =
+    process.env.VERCEL_PROJECT_PRODUCTION_URL ||
+    process.env.VERCEL_URL;
+
+  const requestOrigin = request?.headers?.get('origin');
+  const forwardedHost = request?.headers?.get('x-forwarded-host');
+  const host = forwardedHost || request?.headers?.get('host');
+  const forwardedProto = request?.headers?.get('x-forwarded-proto') || 'https';
+
+  const baseUrl =
+    explicitUrl ||
+    (vercelUrl ? `https://${vercelUrl}` : null) ||
+    requestOrigin ||
+    (host ? `${forwardedProto}://${host}` : null) ||
+    process.env.NEXTAUTH_URL ||
+    'http://localhost:3000';
+
+  return baseUrl.replace(/\/$/, '');
+}
+
+export async function sendVerificationEmail(email, token, request) {
   // Try to use provided SMTP settings or fallback to a dummy/console transport
   // for development if SMTP is not configured.
   const transportConfig = process.env.SMTP_HOST
@@ -21,7 +46,7 @@ export async function sendVerificationEmail(email, token) {
 
   const transporter = nodemailer.createTransport(transportConfig);
   
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL || 'http://localhost:3000';
+  const baseUrl = getAppBaseUrl(request);
   const verifyUrl = `${baseUrl}/api/auth/verify?token=${token}`;
 
   const mailOptions = {
