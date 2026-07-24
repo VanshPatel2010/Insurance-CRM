@@ -151,6 +151,10 @@ export default function LoginContent() {
             {errors.password && <span className="form-error">{errors.password}</span>}
           </div>
 
+          <div style={{ textAlign: 'right', marginTop: -8 }}>
+            <Link href="/forgot-password" style={styles.link}>Forgot password?</Link>
+          </div>
+
           {/* Submit */}
           <button
             type="submit"

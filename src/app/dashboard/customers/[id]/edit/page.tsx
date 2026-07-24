@@ -13,7 +13,7 @@ export default function EditCustomerPage() {
 
   useEffect(() => {
     if (id) {
-      router.replace(`/customers/new?id=${id}`);
+      router.replace(`/dashboard/customers/new?id=${id}`);
     }
   }, [id, router]);
 

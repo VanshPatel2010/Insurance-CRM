@@ -8,6 +8,8 @@ import {
   UserPlus,
   Shield,
   Handshake,
+  FileText,
+  Settings,
 } from 'lucide-react';
 
 const navLinks = [
@@ -15,6 +17,7 @@ const navLinks = [
   { href: '/dashboard/customers', label: 'Policies', icon: Users },
   { href: '/dashboard/customers/new', label: 'Add Policy', icon: UserPlus },
   { href: '/dashboard/referrals', label: 'Referrals', icon: Handshake },
+  { href: '/dashboard/claims', label: 'Claims', icon: FileText },
 ];
 
 export default function Sidebar() {
@@ -68,6 +71,16 @@ export default function Sidebar() {
             </Link>
           );
         })}
+
+        <span className="nav-section-label">Account</span>
+        <Link
+          href="/dashboard/settings"
+          onClick={() => setIsOpen(false)}
+          className={`nav-link${pathname.startsWith('/dashboard/settings') ? ' active' : ''}`.trim()}
+        >
+          <Settings size={16} className="nav-icon" />
+          Settings
+        </Link>
       </nav>
 
       <div className="sidebar-footer">

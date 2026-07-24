@@ -1,11 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { formatCurrency, formatDate, daysUntilExpiry } from "@/lib/utils";
 import PolicyBadge from "@/components/PolicyBadge";
 import StatusBadge from "@/components/StatusBadge";
 import ExpiringPoliciesClient from "@/components/ExpiringPoliciesClient";
+import DashboardCharts from "@/components/DashboardCharts";
 import {
   Users,
   Car,
@@ -80,6 +81,15 @@ export default function DashboardClient({ initialData }: { initialData: any }) {
   });
   const [isFetching, setIsFetching] = useState(false);
   const [dataUpdatedAt, setDataUpdatedAt] = useState<number | null>(null);
+  
+  const [analyticsData, setAnalyticsData] = useState<any>(null);
+
+  useEffect(() => {
+    fetch("/api/dashboard/analytics")
+      .then(res => res.json())
+      .then(data => setAnalyticsData(data))
+      .catch(err => console.error("Failed to fetch analytics", err));
+  }, []);
 
   const refetch = useCallback(async (range = premiumRange) => {
     setIsFetching(true);
@@ -295,6 +305,9 @@ export default function DashboardClient({ initialData }: { initialData: any }) {
           <div className="stat-card-label">Expiring in 30 Days</div>
         </div>
       </div>
+
+      {/* ── Analytics Charts ── */}
+      <DashboardCharts analyticsData={analyticsData} />
 
       {/* ── Bottom Row ── */}
       <div className="dashboard-row">

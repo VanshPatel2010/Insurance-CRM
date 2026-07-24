@@ -6,7 +6,7 @@ export default withAuth(
     const { pathname } = req.nextUrl;
     const token = req.nextauth?.token;
 
-    if (token && (pathname === '/login' || pathname === '/signup')) {
+    if (token && (pathname === '/login' || pathname === '/signup' || pathname === '/forgot-password' || pathname === '/reset-password')) {
       return NextResponse.redirect(new URL('/dashboard', req.url));
     }
   },
@@ -26,5 +26,7 @@ export const config = {
     '/dashboard/:path*',
     '/login',
     '/signup',
+    '/forgot-password',
+    '/reset-password',
   ],
 };

@@ -76,3 +76,50 @@ export async function sendVerificationEmail(email, token, request) {
     // and they can request a new verification email later.
   }
 }
+
+export async function sendPasswordResetEmail(email, token, request) {
+  const transportConfig = process.env.SMTP_HOST
+    ? {
+        host: process.env.SMTP_HOST,
+        port: parseInt(process.env.SMTP_PORT || '587', 10),
+        secure: process.env.SMTP_SECURE === 'true',
+        auth: {
+          user: process.env.SMTP_USER,
+          pass: process.env.SMTP_PASS,
+        },
+      }
+    : {
+        host: 'localhost',
+        port: 1025,
+        ignoreTLS: true,
+      };
+
+  const transporter = nodemailer.createTransport(transportConfig);
+  
+  const baseUrl = getAppBaseUrl(request);
+  const resetUrl = `${baseUrl}/reset-password?token=${token}`;
+
+  const mailOptions = {
+    from: process.env.EMAIL_FROM || '"Insurance Tracker" <noreply@insurancetracker.com>',
+    to: email,
+    subject: 'Reset your password',
+    html: `
+      <h2>Reset Password</h2>
+      <p>You requested a password reset. Please click the link below to set a new password:</p>
+      <a href="${resetUrl}" style="display:inline-block;padding:10px 20px;background-color:#007bff;color:#fff;text-decoration:none;border-radius:5px;">Reset Password</a>
+      <p>Or copy and paste this link into your browser:</p>
+      <p>${resetUrl}</p>
+      <p>This link will expire in 1 hour. If you did not request this, please ignore this email.</p>
+    `,
+  };
+
+  try {
+    const info = await transporter.sendMail(mailOptions);
+    console.log('[Email] Password reset email sent to:', email, info.messageId || '');
+    if (!process.env.SMTP_HOST) {
+       console.log('[Email] Password reset URL (Dev Mode):', resetUrl);
+    }
+  } catch (error) {
+    console.error('[Email] Failed to send password reset email:', error);
+  }
+}
