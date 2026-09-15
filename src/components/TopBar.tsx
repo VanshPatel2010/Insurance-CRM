@@ -1,7 +1,7 @@
 "use client";
-import { useState, useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
+import { useState, useEffect } from "react";
 
 const pageTitles: Record<string, { title: string; subtitle: string }> = {
   "/dashboard": {
@@ -66,8 +66,7 @@ export default function TopBar() {
   return (
     <header className="topbar">
       <div className="topbar-left">
-        {/* Always render the button so server & client trees match.
-            CSS hides it on desktop via .mobile-menu-btn { display: none }. */}
+        {/* Always render the button; CSS hides it on desktop */}
         <button
           className="mobile-menu-btn"
           onClick={() => window.dispatchEvent(new Event("toggle-sidebar"))}
@@ -87,9 +86,9 @@ export default function TopBar() {
             <line x1="3" y1="18" x2="21" y2="18"></line>
           </svg>
         </button>
-        <div>
-          <h2>{title}</h2>
-          {subtitle && <p>{subtitle}</p>}
+        <div style={{ minWidth: 0 }}>
+          <h2 style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{title}</h2>
+          {subtitle && <p style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{subtitle}</p>}
         </div>
       </div>
 
@@ -98,33 +97,12 @@ export default function TopBar() {
 
         {/* User badge */}
         {session?.user && (
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <div
-              style={{
-                width: 32,
-                height: 32,
-                borderRadius: "50%",
-                background: "var(--primary)",
-                color: "#fff",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: 12,
-                fontWeight: 700,
-                flexShrink: 0,
-              }}
-            >
-              {initials}
-            </div>
-            <div style={{ lineHeight: 1.3 }}>
-              <div
-                style={{ fontSize: 12, fontWeight: 600, color: "var(--text)" }}
-              >
-                {session.user.name}
-              </div>
-              <div style={{ fontSize: 11, color: "var(--text-muted)" }}>
-                {(session.user as { agencyName?: string }).agencyName ??
-                  "Agent"}
+          <div className="user-badge">
+            <div className="user-avatar">{initials}</div>
+            <div className="user-info">
+              <div className="user-name">{session.user.name}</div>
+              <div className="user-agency">
+                {(session.user as { agencyName?: string }).agencyName ?? "Agent"}
               </div>
             </div>
           </div>
@@ -134,37 +112,8 @@ export default function TopBar() {
         <button
           onClick={handleLogout}
           title="Logout"
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 6,
-            padding: "7px 14px",
-            borderRadius: 6,
-            border: "1.5px solid var(--border)",
-            background: "transparent",
-            cursor: "pointer",
-            fontSize: 13,
-            fontWeight: 600,
-            color: "var(--text-muted)",
-            transition: "all .15s",
-          }}
-          onMouseEnter={(e) => {
-            (e.currentTarget as HTMLButtonElement).style.background = "#fde8e6";
-            (e.currentTarget as HTMLButtonElement).style.borderColor =
-              "#f7b8b8";
-            (e.currentTarget as HTMLButtonElement).style.color =
-              "var(--status-expired)";
-          }}
-          onMouseLeave={(e) => {
-            (e.currentTarget as HTMLButtonElement).style.background =
-              "transparent";
-            (e.currentTarget as HTMLButtonElement).style.borderColor =
-              "var(--border)";
-            (e.currentTarget as HTMLButtonElement).style.color =
-              "var(--text-muted)";
-          }}
+          className="logout-btn"
         >
-          {/* Log out icon */}
           <svg
             width="14"
             height="14"
@@ -177,7 +126,7 @@ export default function TopBar() {
             <polyline points="16 17 21 12 16 7" />
             <line x1="21" y1="12" x2="9" y2="12" />
           </svg>
-          Logout
+          <span className="logout-btn-text">Logout</span>
         </button>
       </div>
     </header>

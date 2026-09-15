@@ -41,7 +41,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={inter.variable}>
+    <html lang="en" className={inter.variable} suppressHydrationWarning>
       <head>
         {/* Preload the local PDF worker to eliminate network lag during extraction */}
         <link 
@@ -50,12 +50,22 @@ export default function RootLayout({
           as="script" 
           type="text/javascript"
         />
+        <script dangerouslySetInnerHTML={{ __html: `
+          (function() {
+            try {
+              var theme = localStorage.getItem('theme');
+              if (theme === 'dark' || (!theme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                document.documentElement.setAttribute('data-theme', 'dark');
+              }
+            } catch(e) {}
+          })();
+        `}} />
       </head>
       {/*
         `inter.className` applies the loaded font-family directly to <body>.
         This is the Next.js recommended approach — no @import in CSS required.
       */}
-      <body className={inter.className}>
+      <body className={inter.className} suppressHydrationWarning>
         {/*
           Preconnect hints for origins that are still fetched at runtime:
           - MongoDB / Vercel serverless calls are same-origin (no hint needed)

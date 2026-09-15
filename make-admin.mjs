@@ -23,6 +23,12 @@ if (fs.existsSync(envPath)) {
 import Agent from './src/models/Agent.js';
 
 async function makeAdmin() {
+  const targetEmail = process.argv[2];
+  if (!targetEmail) {
+    console.error('Usage: node make-admin.mjs <email>');
+    process.exit(1);
+  }
+
   try {
     const mongoUri = process.env.MONGODB_URI;
     if (!mongoUri) {
@@ -33,16 +39,16 @@ async function makeAdmin() {
     console.log('Connected to MongoDB');
 
     const result = await Agent.updateOne(
-      { email: 'test@1.com' },
+      { email: targetEmail },
       { $set: { isAdmin: true } }
     );
 
     console.log('Update result:', result);
     
     if (result.matchedCount === 0) {
-      console.log('❌ No agent found with email: test@1.com');
+      console.log(`❌ No agent found with email: ${targetEmail}`);
     } else if (result.modifiedCount === 1) {
-      console.log('✅ Successfully made test@1.com an admin');
+      console.log(`✅ Successfully made ${targetEmail} an admin`);
     } else {
       console.log('⚠️ Agent already had isAdmin set to true');
     }

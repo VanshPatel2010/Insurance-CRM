@@ -6,7 +6,7 @@ export default withAuth(
     const { pathname } = req.nextUrl;
     const token = req.nextauth?.token;
 
-    if (token && (pathname === '/login' || pathname === '/signup')) {
+    if (token && (pathname === '/login' || pathname === '/signup' || pathname === '/forgot-password' || pathname === '/reset-password')) {
       return NextResponse.redirect(new URL('/dashboard', req.url));
     }
   },
@@ -15,6 +15,8 @@ export default withAuth(
       authorized: ({ token, req }) => {
         const { pathname } = req.nextUrl;
         if (pathname.startsWith('/dashboard')) return !!token;
+        // Admin routes require both a valid session AND admin role
+        if (pathname.startsWith('/admin')) return !!token && !!token.isAdmin;
         return true;
       },
     },
@@ -24,7 +26,10 @@ export default withAuth(
 export const config = {
   matcher: [
     '/dashboard/:path*',
+    '/admin/:path*',
     '/login',
     '/signup',
+    '/forgot-password',
+    '/reset-password',
   ],
 };

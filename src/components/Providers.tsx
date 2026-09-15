@@ -53,7 +53,13 @@ export default function Providers({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <SessionProvider>
+    <SessionProvider
+      // Poll session every 5 minutes instead of the aggressive default.
+      // refetchOnWindowFocus: false prevents a burst of /api/auth/session
+      // calls every time the user alt-tabs or switches browser windows.
+      refetchInterval={5 * 60}
+      refetchOnWindowFocus={false}
+    >
       <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
     </SessionProvider>
   );
