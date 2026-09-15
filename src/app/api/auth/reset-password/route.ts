@@ -29,8 +29,8 @@ export async function POST(request: Request) {
       );
     }
 
-    const salt = await bcrypt.genSalt(10);
-    agent.password = await bcrypt.hash(password, salt);
+    // Use cost factor 12 — consistent with signup route
+    agent.password = await bcrypt.hash(password, 12);
     agent.resetPasswordToken = null;
     agent.resetPasswordExpires = null;
 

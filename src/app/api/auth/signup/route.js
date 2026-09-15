@@ -5,6 +5,28 @@ import { connectDB } from '@/lib/mongodb';
 import Agent from '@/models/Agent';
 import { sendVerificationEmail } from '@/lib/email';
 
+/**
+ * Rate limit signup attempts to prevent account spam.
+ * Uses IP address as the key; falls back gracefully if Redis is unavailable.
+ */
+async function enforceSignupRateLimit(request) {
+  if (!process.env.UPSTASH_REDIS_REST_URL) return;
+  try {
+    const { loginRateLimit } = await import('@/lib/rateLimit');
+    const ip =
+      request.headers.get('x-forwarded-for')?.split(',')[0].trim() ||
+      request.headers.get('x-real-ip') ||
+      'unknown';
+    const { success } = await loginRateLimit.limit(`signup_${ip}`);
+    if (!success) {
+      throw Object.assign(new Error('Too many signup attempts. Please wait before trying again.'), { status: 429 });
+    }
+  } catch (err) {
+    if (err.status === 429) throw err;
+    console.warn('[Signup Rate Limit Error]', err);
+  }
+}
+
 export async function POST(request) {
   try {
     const body = await request.json();
@@ -27,17 +49,20 @@ export async function POST(request) {
       );
     }
 
-    if (password.length < 6) {
+    if (password.length < 8) {
       return NextResponse.json(
-        { success: false, message: 'Password must be at least 6 characters.' },
+        { success: false, message: 'Password must be at least 8 characters.' },
         { status: 400 }
       );
     }
 
-    // ── 2. Connect to MongoDB ────────────────────────────────────────────────
+    // ── 2. Rate limit signup attempts ──────────────────────────────────────
+    await enforceSignupRateLimit(request);
+
+    // ── 3. Connect to MongoDB ────────────────────────────────────────────────
     await connectDB();
 
-    // ── 3. Check for duplicate email ─────────────────────────────────────────
+    // ── 4. Check for duplicate email ─────────────────────────────────────────
     const existingAgent = await Agent.findOne({ email: email.toLowerCase() });
     if (existingAgent) {
       return NextResponse.json(
@@ -46,10 +71,10 @@ export async function POST(request) {
       );
     }
 
-    // ── 4. Hash the password ─────────────────────────────────────────────────
+    // ── 5. Hash the password ─────────────────────────────────────────────────
     const hashedPassword = await bcrypt.hash(password, 12);
 
-    // ── 5. Create the agent record ───────────────────────────────────────────
+    // ── 6. Create the agent record ───────────────────────────────────────────
     const verificationToken = crypto.randomBytes(32).toString('hex');
     const verificationTokenExpires = Date.now() + 24 * 60 * 60 * 1000; // 24 hours
 
@@ -64,10 +89,10 @@ export async function POST(request) {
       verificationTokenExpires,
     });
 
-    // ── 6. Send verification email ───────────────────────────────────────────
+    // ── 7. Send verification email ───────────────────────────────────────────
     await sendVerificationEmail(agent.email, verificationToken, request);
 
-    // ── 7. Return success (never expose the hashed password) ─────────────────
+    // ── 8. Return success (never expose the hashed password) ─────────────────
     return NextResponse.json(
       {
         success: true,
@@ -84,6 +109,14 @@ export async function POST(request) {
       { status: 201 }
     );
   } catch (error) {
+    // Rate limit exceeded
+    if (error.status === 429) {
+      return NextResponse.json(
+        { success: false, message: error.message },
+        { status: 429 }
+      );
+    }
+
     // Mongoose duplicate-key error (race condition fallback)
     if (error.code === 11000) {
       return NextResponse.json(
@@ -108,3 +141,4 @@ export async function POST(request) {
     );
   }
 }
+

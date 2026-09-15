@@ -15,6 +15,8 @@ export default withAuth(
       authorized: ({ token, req }) => {
         const { pathname } = req.nextUrl;
         if (pathname.startsWith('/dashboard')) return !!token;
+        // Admin routes require both a valid session AND admin role
+        if (pathname.startsWith('/admin')) return !!token && !!token.isAdmin;
         return true;
       },
     },
@@ -24,6 +26,7 @@ export default withAuth(
 export const config = {
   matcher: [
     '/dashboard/:path*',
+    '/admin/:path*',
     '/login',
     '/signup',
     '/forgot-password',

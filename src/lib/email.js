@@ -1,28 +1,47 @@
 import nodemailer from 'nodemailer';
 
 export function getAppBaseUrl(request) {
+  // 1. Explicit production domain — highest priority, always correct.
+  //    Set APP_URL (or NEXT_PUBLIC_APP_URL) in your hosting platform env vars.
   const explicitUrl =
-    process.env.NEXT_PUBLIC_APP_URL ||
-    process.env.APP_URL;
+    process.env.APP_URL ||
+    process.env.NEXT_PUBLIC_APP_URL;
 
+  if (explicitUrl) {
+    return explicitUrl.replace(/\/$/, '');
+  }
+
+  // 2. Vercel automatic deployment URL
   const vercelUrl =
     process.env.VERCEL_PROJECT_PRODUCTION_URL ||
     process.env.VERCEL_URL;
 
-  const requestOrigin = request?.headers?.get('origin');
-  const forwardedHost = request?.headers?.get('x-forwarded-host');
-  const host = forwardedHost || request?.headers?.get('host');
-  const forwardedProto = request?.headers?.get('x-forwarded-proto') || 'https';
+  if (vercelUrl) {
+    return `https://${vercelUrl}`;
+  }
 
-  const baseUrl =
-    explicitUrl ||
-    (vercelUrl ? `https://${vercelUrl}` : null) ||
-    requestOrigin ||
-    (host ? `${forwardedProto}://${host}` : null) ||
-    process.env.NEXTAUTH_URL ||
-    'http://localhost:3000';
+  // 3. Derive from the incoming request headers (works on most platforms)
+  if (request) {
+    const forwardedHost = request.headers?.get?.('x-forwarded-host');
+    const host = forwardedHost || request.headers?.get?.('host');
+    const proto = request.headers?.get?.('x-forwarded-proto') || 'https';
+    const origin = request.headers?.get?.('origin');
 
-  return baseUrl.replace(/\/$/, '');
+    if (origin) return origin.replace(/\/$/, '');
+    if (host) return `${proto}://${host}`.replace(/\/$/, '');
+  }
+
+  // 4. Last resort: NEXTAUTH_URL then hardcoded localhost
+  const fallback = process.env.NEXTAUTH_URL || 'http://localhost:3000';
+
+  if (process.env.NODE_ENV === 'production' && fallback.includes('localhost')) {
+    console.error(
+      '[Email] ⚠️  getAppBaseUrl() is falling back to localhost in PRODUCTION. ' +
+      'Set the APP_URL environment variable to your production domain!'
+    );
+  }
+
+  return fallback.replace(/\/$/, '');
 }
 
 export async function sendVerificationEmail(email, token, request) {

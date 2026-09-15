@@ -65,7 +65,7 @@ export default function RootLayout({
         `inter.className` applies the loaded font-family directly to <body>.
         This is the Next.js recommended approach — no @import in CSS required.
       */}
-      <body className={inter.className}>
+      <body className={inter.className} suppressHydrationWarning>
         {/*
           Preconnect hints for origins that are still fetched at runtime:
           - MongoDB / Vercel serverless calls are same-origin (no hint needed)
