@@ -628,7 +628,7 @@ async function geminiExtractText(text: string): Promise<unknown> {
   }
 
   const cleanText = text.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '').trim();
-  const model = 'gemini-3.1-flash-lite';
+  const model = 'gemini-3.5-flash-lite';
 
   const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
     method: 'POST',
