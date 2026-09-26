@@ -3,6 +3,7 @@ import { authOptions } from '@/lib/authOptions';
 import { redirect } from 'next/navigation';
 import Sidebar from '@/components/Sidebar';
 import TopBar from '@/components/TopBar';
+import MobileTabBar from '@/components/MobileTabBar';
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const session = await getServerSession(authOptions);
@@ -20,6 +21,8 @@ export default async function DashboardLayout({ children }: { children: React.Re
           {children}
         </main>
       </div>
+      {/* Mobile bottom tab bar — hidden on desktop via CSS */}
+      <MobileTabBar />
     </div>
   );
 }

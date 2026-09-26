@@ -1,15 +1,17 @@
 "use client";
 import { FormEvent, useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Plus, RefreshCw } from "lucide-react";
 import { createReferral, getReferrals, ReferralMemberDoc } from "@/lib/storage";
 import { formatCurrency } from "@/lib/utils";
 
 export default function ReferralsPage() {
+  const router = useRouter();
   const [referrals, setReferrals] = useState<ReferralMemberDoc[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
+  const [loading,   setLoading]   = useState(true);
+  const [saving,    setSaving]    = useState(false);
+  const [error,     setError]     = useState("");
   const [form, setForm] = useState({ name: "", phone: "", email: "" });
 
   async function load() {
@@ -82,7 +84,32 @@ export default function ReferralsPage() {
 
       {error && <div className="alert alert-danger" style={{ marginBottom: 16 }}>{error}</div>}
       {loading ? (
-        <div style={{ padding: 40, color: "var(--text-muted)" }}>Loading referrals…</div>
+        <div className="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th><th>Contact Info</th><th>Policies</th>
+                <th>Commission</th><th>Pending</th><th>Paid</th><th>Net Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              {Array.from({ length: 6 }).map((_, i) => (
+                <tr key={i} className="skeleton-row">
+                  <td><div className="skeleton" style={{ width: 100 }} /></td>
+                  <td>
+                    <div className="skeleton" style={{ width: 90, marginBottom: 5 }} />
+                    <div className="skeleton" style={{ width: 110, height: 10 }} />
+                  </td>
+                  <td><div className="skeleton" style={{ width: 30 }} /></td>
+                  <td><div className="skeleton" style={{ width: 65 }} /></td>
+                  <td><div className="skeleton" style={{ width: 55 }} /></td>
+                  <td><div className="skeleton" style={{ width: 55 }} /></td>
+                  <td><div className="skeleton" style={{ width: 65 }} /></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       ) : (
         <div className="table-wrapper">
           <table>
@@ -102,11 +129,13 @@ export default function ReferralsPage() {
             </thead>
             <tbody>
               {referrals.map((person) => (
-                <tr key={person._id}>
+                <tr
+                  key={person._id}
+                  className="clickable-row"
+                  onClick={() => router.push(`/dashboard/referrals/${person._id}`)}
+                >
                   <td>
-                    <Link className="td-name" href={`/dashboard/referrals/${person._id}`}>
-                      {person.name}
-                    </Link>
+                    <div className="td-name">{person.name}</div>
                   </td>
                   <td>
                     <div>{person.phone || "—"}</div>
@@ -116,10 +145,7 @@ export default function ReferralsPage() {
                   <td>{formatCurrency(person.totalCommission ?? 0)}</td>
                   <td>{formatCurrency(person.pendingCommission ?? 0)}</td>
                   <td>{formatCurrency(person.paidCommission ?? 0)}</td>
-                  <td>{formatCurrency(person.premiumPaidByAgency ?? 0)}</td>
-                  <td>{formatCurrency(person.paymentReceivedFromReferral ?? 0)}</td>
-                  <td>{formatCurrency(person.paymentSentToReferral ?? 0)}</td>
-                  <td>{formatCurrency(person.netAmount ?? 0)}</td>
+                  <td style={{ fontWeight: 600 }}>{formatCurrency(person.netAmount ?? 0)}</td>
                 </tr>
               ))}
               {referrals.length === 0 && (

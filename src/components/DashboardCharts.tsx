@@ -1,222 +1,252 @@
 "use client";
 
-import { useMemo } from "react";
+import {
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  CartesianGrid,
+  Area,
+  AreaChart,
+  PieChart,
+  Pie,
+  Cell,
+  Legend,
+} from "recharts";
+
 import { formatCurrency } from "@/lib/utils";
 
-// SVGs and components for zero-bundle charts
+/* ── Colour palette matching CSS variables ─────────────────────────────────── */
+const TYPE_COLORS: Record<string, string> = {
+  motor:                 "#185FA5",
+  medical:               "#3B6D11",
+  fire:                  "#BA7517",
+  life:                  "#534AB7",
+  "personal-accident":   "#a33b2d",
+  marine:                "#0a6c74",
+  "workman-compensation":"#6b4f1d",
+  travel:                "#0891b2",
+};
+
+/* ── Shared tooltip style ────────────────────────────────────────────────────── */
+const tooltipStyle: React.CSSProperties = {
+  background: "var(--surface)",
+  border: "1px solid var(--border)",
+  borderRadius: 8,
+  boxShadow: "0 4px 12px rgba(0,0,0,.10)",
+  fontSize: 12,
+  color: "var(--text)",
+};
+
+/* ── Monthly bar chart ───────────────────────────────────────────────────────── */
 function MonthlyPoliciesChart({ data }: { data: { month: string; count: number }[] }) {
   if (!data || data.length === 0) return <div className="empty-state">No data available</div>;
-  
-  const max = Math.max(...data.map(d => d.count), 1);
-  const height = 180;
-  
+
+  const formatted = data.map(d => ({
+    month: d.month.split("-")[1],   // "2024-03" → "03"
+    count: d.count,
+  }));
+
   return (
-    <div style={{ position: "relative", height: height + 30, width: "100%", marginTop: 10 }}>
-      <svg width="100%" height="100%" preserveAspectRatio="none">
-        {data.map((d, i) => {
-          const barWidth = 100 / data.length;
-          const barHeight = (d.count / max) * height;
-          const x = i * barWidth;
-          const y = height - barHeight;
-          return (
-            <g key={i}>
-              <rect
-                x={`${x + barWidth * 0.2}%`}
-                y={y}
-                width={`${barWidth * 0.6}%`}
-                height={barHeight}
-                fill="var(--primary)"
-                rx="4"
-                style={{ transition: "all 0.3s ease", cursor: "pointer" }}
-                className="chart-bar"
-              />
-              {/* Tooltip hint placeholder - normally would use a state for hover */}
-              <text x={`${x + barWidth * 0.5}%`} y={height + 20} fontSize="10" fill="var(--text-muted)" textAnchor="middle">
-                {d.month.split("-")[1]}
-              </text>
-            </g>
-          );
-        })}
-      </svg>
-      <style dangerouslySetInnerHTML={{__html: `
-        .chart-bar:hover { opacity: 0.8; }
-      `}} />
-    </div>
+    <ResponsiveContainer width="100%" height={200}>
+      <BarChart data={formatted} barSize={20} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
+        <CartesianGrid strokeDasharray="3 3" stroke="var(--border-light)" vertical={false} />
+        <XAxis dataKey="month" tick={{ fontSize: 11, fill: "var(--text-muted)" }} axisLine={false} tickLine={false} />
+        <YAxis tick={{ fontSize: 11, fill: "var(--text-muted)" }} axisLine={false} tickLine={false} allowDecimals={false} />
+        <Tooltip
+          contentStyle={tooltipStyle}
+          cursor={{ fill: "var(--primary-light)" }}
+          formatter={(value: unknown) => [Number(value), "Policies"]}
+        />
+        <Bar dataKey="count" fill="var(--primary)" radius={[4, 4, 0, 0]} animationDuration={600} />
+      </BarChart>
+    </ResponsiveContainer>
   );
 }
 
-function PolicyTypeDonut({ data }: { data: { type: string; count: number; premium: number }[] }) {
-  if (!data || data.length === 0) return <div className="empty-state">No data available</div>;
-
-  const total = data.reduce((sum, d) => sum + d.count, 0);
-  let currentAngle = -90; // Start at top
-  const radius = 60;
-  const center = 100;
-
-  const getCoordinatesForAngle = (angle: number) => {
-    const angleInRadians = (angle * Math.PI) / 180;
-    return {
-      x: center + radius * Math.cos(angleInRadians),
-      y: center + radius * Math.sin(angleInRadians)
-    };
-  };
-
-  const cssVars: Record<string, string> = {
-    motor: "var(--motor)",
-    medical: "var(--medical)",
-    fire: "var(--fire)",
-    life: "var(--life)",
-    "personal-accident": "var(--personal-accident)",
-    marine: "var(--marine)",
-    "workman-compensation": "var(--workman-compensation)",
-    travel: "var(--travel)",
-  };
-
-  return (
-    <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
-      <svg width="200" height="200" viewBox="0 0 200 200">
-        {data.map((d, i) => {
-          const sliceAngle = (d.count / total) * 360;
-          const start = getCoordinatesForAngle(currentAngle);
-          currentAngle += sliceAngle;
-          const end = getCoordinatesForAngle(currentAngle);
-          
-          const largeArcFlag = sliceAngle > 180 ? 1 : 0;
-          const pathData = [
-            `M ${center} ${center}`,
-            `L ${start.x} ${start.y}`,
-            `A ${radius} ${radius} 0 ${largeArcFlag} 1 ${end.x} ${end.y}`,
-            "Z"
-          ].join(" ");
-
-          // If slice is 100%, render a circle instead
-          if (sliceAngle === 360) {
-            return <circle key={i} cx={center} cy={center} r={radius} fill={cssVars[d.type] || "var(--primary)"} />;
-          }
-
-          return (
-            <path
-              key={i}
-              d={pathData}
-              fill={cssVars[d.type] || "var(--primary)"}
-              style={{ transition: "all 0.3s ease", cursor: "pointer" }}
-              className="chart-slice"
-            />
-          );
-        })}
-        {/* Inner circle for donut hole */}
-        <circle cx={center} cy={center} r="40" fill="var(--surface)" />
-        <text x={center} y={center + 5} textAnchor="middle" fontSize="16" fontWeight="bold" fill="var(--text)">
-          {total}
-        </text>
-      </svg>
-      
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 8 }}>
-        {data.map((d, i) => (
-          <div key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: 12 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <div style={{ width: 10, height: 10, borderRadius: "50%", background: cssVars[d.type] || "var(--primary)" }} />
-              <span style={{ textTransform: "capitalize", color: "var(--text-muted)" }}>{d.type.replace("-", " ")}</span>
-            </div>
-            <span style={{ fontWeight: 600 }}>{d.count}</span>
-          </div>
-        ))}
-      </div>
-      <style dangerouslySetInnerHTML={{__html: `
-        .chart-slice:hover { opacity: 0.8; }
-      `}} />
-    </div>
-  );
-}
-
+/* ── Monthly premium area chart ─────────────────────────────────────────────── */
 function MonthlyPremiumChart({ data }: { data: { month: string; total: number }[] }) {
   if (!data || data.length === 0) return <div className="empty-state">No data available</div>;
 
-  const max = Math.max(...data.map(d => d.total), 1);
-  const height = 180;
-  
-  const points = data.map((d, i) => {
-    const x = (i / Math.max(data.length - 1, 1)) * 100;
-    const y = height - (d.total / max) * height;
-    return `${x}%,${y}`;
-  }).join(" ");
-
-  const polygonPoints = `0%,${height} ${points} 100%,${height}`;
+  const formatted = data.map(d => ({
+    month: d.month.split("-")[1],
+    total: d.total,
+  }));
 
   return (
-    <div style={{ position: "relative", height: height + 30, width: "100%", marginTop: 10 }}>
-      <svg width="100%" height="100%" preserveAspectRatio="none" style={{ overflow: "visible" }}>
+    <ResponsiveContainer width="100%" height={200}>
+      <AreaChart data={formatted} margin={{ top: 4, right: 4, left: -10, bottom: 0 }}>
         <defs>
           <linearGradient id="premiumGrad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#059669" stopOpacity="0.3" />
-            <stop offset="100%" stopColor="#059669" stopOpacity="0" />
+            <stop offset="5%"  stopColor="#059669" stopOpacity={0.25} />
+            <stop offset="95%" stopColor="#059669" stopOpacity={0}    />
           </linearGradient>
         </defs>
-        <polygon points={polygonPoints} fill="url(#premiumGrad)" />
-        <polyline points={points} fill="none" stroke="#059669" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-        
-        {data.map((d, i) => {
-          const x = (i / Math.max(data.length - 1, 1)) * 100;
-          const y = height - (d.total / max) * height;
-          return (
-            <g key={i}>
-              <circle cx={`${x}%`} cy={y} r="4" fill="#059669" className="chart-point" />
-              <text x={`${x}%`} y={height + 20} fontSize="10" fill="var(--text-muted)" textAnchor="middle">
-                {d.month.split("-")[1]}
-              </text>
-            </g>
-          );
-        })}
-      </svg>
-      <style dangerouslySetInnerHTML={{__html: `
-        .chart-point { transition: r 0.2s; cursor: pointer; }
-        .chart-point:hover { r: 6; }
-      `}} />
-    </div>
+        <CartesianGrid strokeDasharray="3 3" stroke="var(--border-light)" vertical={false} />
+        <XAxis dataKey="month" tick={{ fontSize: 11, fill: "var(--text-muted)" }} axisLine={false} tickLine={false} />
+        <YAxis
+          tick={{ fontSize: 11, fill: "var(--text-muted)" }}
+          axisLine={false}
+          tickLine={false}
+          tickFormatter={(v: number) => `₹${(v / 1000).toFixed(0)}k`}
+        />
+        <Tooltip
+          contentStyle={tooltipStyle}
+          formatter={(value: unknown) => [formatCurrency(Number(value)), "Premium"]}
+        />
+        <Area
+          type="monotone"
+          dataKey="total"
+          stroke="#059669"
+          strokeWidth={2}
+          fill="url(#premiumGrad)"
+          dot={{ r: 4, fill: "#059669", strokeWidth: 0 }}
+          activeDot={{ r: 6, fill: "#059669" }}
+          animationDuration={700}
+        />
+      </AreaChart>
+    </ResponsiveContainer>
   );
 }
 
-function StatusSummaryBar({ status }: { status: { active: number; expiring: number; expired: number } }) {
+/* ── Policy type donut (PieChart) ────────────────────────────────────────────── */
+function PolicyTypeDonut({ data }: { data: { type: string; count: number; premium: number }[] }) {
+  if (!data || data.length === 0) return <div className="empty-state">No data available</div>;
+
+  const total = data.reduce((s, d) => s + d.count, 0);
+
+  const formatted = data.map(d => ({
+    name:  d.type.replace(/-/g, " ").replace(/\b\w/g, c => c.toUpperCase()),
+    value: d.count,
+    color: TYPE_COLORS[d.type] ?? "var(--primary)",
+  }));
+
+  return (
+    <ResponsiveContainer width="100%" height={200}>
+      <PieChart>
+        <Pie
+          data={formatted}
+          cx="50%"
+          cy="50%"
+          innerRadius={50}
+          outerRadius={80}
+          paddingAngle={2}
+          dataKey="value"
+          animationDuration={700}
+          label={({ percent }) =>
+            percent != null && percent > 0.08 ? `${(percent * 100).toFixed(0)}%` : ""
+          }
+          labelLine={false}
+        >
+          {formatted.map((entry, i) => (
+            <Cell key={i} fill={entry.color} />
+          ))}
+        </Pie>
+        <Tooltip
+          contentStyle={tooltipStyle}
+          formatter={(value: unknown, name?: unknown) => [
+            `${Number(value)} (${((Number(value) / total) * 100).toFixed(1)}%)`,
+            String(name ?? ""),
+          ]}
+        />
+        <Legend
+          iconType="circle"
+          iconSize={8}
+          wrapperStyle={{ fontSize: 11, color: "var(--text-muted)", paddingTop: 8 }}
+        />
+      </PieChart>
+    </ResponsiveContainer>
+  );
+}
+
+/* ── Status summary segmented bar ────────────────────────────────────────────── */
+function StatusSummaryBar({
+  status,
+}: {
+  status: { active: number; expiring: number; expired: number };
+}) {
   const total = status.active + status.expiring + status.expired;
   if (total === 0) return <div className="empty-state">No data available</div>;
 
-  const activePct = (status.active / total) * 100;
+  const activePct   = (status.active   / total) * 100;
   const expiringPct = (status.expiring / total) * 100;
-  const expiredPct = (status.expired / total) * 100;
+  const expiredPct  = (status.expired  / total) * 100;
+
+  const segments = [
+    { label: "Active",        pct: activePct,   count: status.active,   color: "var(--status-active)"   },
+    { label: "Expiring Soon", pct: expiringPct, count: status.expiring, color: "var(--status-expiring)" },
+    { label: "Expired",       pct: expiredPct,  count: status.expired,  color: "var(--status-expired)"  },
+  ];
 
   return (
-    <div style={{ marginTop: 20 }}>
-      <div style={{ display: "flex", width: "100%", height: 24, borderRadius: "var(--radius-sm)", overflow: "hidden", marginBottom: 12 }}>
-        <div style={{ width: `${activePct}%`, background: "var(--status-active)", transition: "width 1s" }} title={`Active: ${status.active}`} />
-        <div style={{ width: `${expiringPct}%`, background: "var(--status-expiring)", transition: "width 1s" }} title={`Expiring: ${status.expiring}`} />
-        <div style={{ width: `${expiredPct}%`, background: "var(--status-expired)", transition: "width 1s" }} title={`Expired: ${status.expired}`} />
+    <div style={{ marginTop: 12 }}>
+      {/* Segmented bar */}
+      <div style={{
+        display: "flex",
+        width: "100%",
+        height: 28,
+        borderRadius: "var(--radius-sm)",
+        overflow: "hidden",
+        marginBottom: 16,
+        gap: 2,
+      }}>
+        {segments.map(s => (
+          s.pct > 0 && (
+            <div
+              key={s.label}
+              style={{
+                width: `${s.pct}%`,
+                background: s.color,
+                transition: "width 0.8s ease",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+              title={`${s.label}: ${s.count}`}
+            />
+          )
+        ))}
       </div>
-      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <div style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--status-active)" }} />
-          <span style={{ color: "var(--text-muted)" }}>Active ({activePct.toFixed(1)}%)</span>
-        </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <div style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--status-expiring)" }} />
-          <span style={{ color: "var(--text-muted)" }}>Expiring ({expiringPct.toFixed(1)}%)</span>
-        </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <div style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--status-expired)" }} />
-          <span style={{ color: "var(--text-muted)" }}>Expired ({expiredPct.toFixed(1)}%)</span>
-        </div>
+
+      {/* Legend */}
+      <div style={{ display: "flex", flexWrap: "wrap", gap: "10px 20px" }}>
+        {segments.map(s => (
+          <div key={s.label} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <div style={{
+              width: 10, height: 10, borderRadius: "50%",
+              background: s.color, flexShrink: 0,
+            }} />
+            <span style={{ fontSize: 12, color: "var(--text-muted)" }}>
+              {s.label}
+            </span>
+            <span style={{ fontSize: 12, fontWeight: 700, color: "var(--text)" }}>
+              {s.count}
+            </span>
+            <span style={{ fontSize: 11, color: "var(--text-light)" }}>
+              ({s.pct.toFixed(1)}%)
+            </span>
+          </div>
+        ))}
       </div>
     </div>
   );
 }
 
-export default function DashboardCharts({ analyticsData }: { analyticsData: any }) {
+/* ── Exported composite ──────────────────────────────────────────────────────── */
+export default function DashboardCharts({
+  analyticsData,
+}: {
+  analyticsData: any;
+}) {
   if (!analyticsData) return null;
 
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginBottom: 24 }}>
+    <div className="charts-grid">
       <div className="card">
         <div className="card-header">
-          <span className="card-title">Policies (Last 12 Months)</span>
+          <span className="card-title">Policies Added (Last 12 Months)</span>
         </div>
         <div className="card-body">
           <MonthlyPoliciesChart data={analyticsData.monthlyPolicies} />

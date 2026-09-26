@@ -1,7 +1,7 @@
 "use client";
 import { useState, useRef } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import {
   getAllCustomers,
   deleteCustomer,
@@ -44,7 +44,8 @@ function yearRange(year: number) {
 
 export default function CustomersContent() {
   const searchParams = useSearchParams();
-  const queryClient = useQueryClient();
+  const queryClient  = useQueryClient();
+  const router       = useRouter();
 
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
@@ -406,16 +407,30 @@ export default function CustomersContent() {
         </div>
       )}
 
-      {/* Loading */}
+      {/* Loading skeleton */}
       {isFetching && !data ? (
-        <div
-          style={{
-            padding: 40,
-            textAlign: "center",
-            color: "var(--text-muted)",
-          }}
-        >
-          Loading customers…
+        <div className="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Customer</th><th>Type</th><th>Policy Number</th>
+                <th>Premium</th><th>Expiry Date</th><th>Status</th><th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {Array.from({ length: 8 }).map((_, i) => (
+                <tr key={i} className="skeleton-row">
+                  <td><div className="skeleton" /><div className="skeleton" /></td>
+                  <td><div className="skeleton" style={{ width: 70 }} /></td>
+                  <td><div className="skeleton" style={{ width: 90 }} /></td>
+                  <td><div className="skeleton" style={{ width: 60 }} /></td>
+                  <td><div className="skeleton" style={{ width: 75 }} /></td>
+                  <td><div className="skeleton" style={{ width: 55 }} /></td>
+                  <td><div className="skeleton" style={{ width: 50 }} /></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       ) : customers.length === 0 ? (
         <div className="card">
@@ -580,6 +595,8 @@ export default function CustomersContent() {
                   return (
                     <tr
                       key={p._id}
+                      className="clickable-row"
+                      onClick={() => router.push(`/dashboard/customers/${p._id}`)}
                       style={{
                         opacity: mutation.variables === p._id ? 0.5 : 1,
                       }}
@@ -621,7 +638,7 @@ export default function CustomersContent() {
                       <td>
                         <StatusBadge status={status} />
                       </td>
-                      <td>
+                      <td onClick={e => e.stopPropagation()}>
                         <div className="td-actions">
                           <Link
                             href={`/dashboard/customers/${p._id}`}

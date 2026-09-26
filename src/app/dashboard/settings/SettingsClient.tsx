@@ -135,30 +135,28 @@ export default function SettingsClient() {
         </div>
       </div>
 
-      <div style={{ display: "flex", gap: 24, alignItems: "flex-start" }}>
+      <div className="settings-layout">
         {/* Sidebar Tabs */}
-        <div className="card" style={{ width: 240, padding: 8 }}>
-          <button
-            onClick={() => setActiveTab("profile")}
-            className={`nav-link ${activeTab === "profile" ? "active" : ""}`}
-            style={{ width: "100%", justifyContent: "flex-start", background: activeTab === "profile" ? "var(--primary-light)" : "transparent", color: activeTab === "profile" ? "var(--primary)" : "inherit" }}
-          >
-            <User size={16} /> Profile
-          </button>
-          <button
-            onClick={() => setActiveTab("security")}
-            className={`nav-link ${activeTab === "security" ? "active" : ""}`}
-            style={{ width: "100%", justifyContent: "flex-start", background: activeTab === "security" ? "var(--primary-light)" : "transparent", color: activeTab === "security" ? "var(--primary)" : "inherit" }}
-          >
-            <Shield size={16} /> Security
-          </button>
-          <button
-            onClick={() => setActiveTab("preferences")}
-            className={`nav-link ${activeTab === "preferences" ? "active" : ""}`}
-            style={{ width: "100%", justifyContent: "flex-start", background: activeTab === "preferences" ? "var(--primary-light)" : "transparent", color: activeTab === "preferences" ? "var(--primary)" : "inherit" }}
-          >
-            <Moon size={16} /> Preferences
-          </button>
+        <div className="card settings-tabs" style={{ padding: 8 }}>
+          {[
+            { id: "profile",     label: "Profile",     icon: <User size={16} /> },
+            { id: "security",    label: "Security",    icon: <Shield size={16} /> },
+            { id: "preferences", label: "Preferences", icon: <Moon size={16} /> },
+          ].map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`nav-link settings-tab-btn${activeTab === tab.id ? " active" : ""}`}
+              style={{
+                width: "100%",
+                justifyContent: "flex-start",
+                background: activeTab === tab.id ? "var(--primary-light)" : "transparent",
+                color: activeTab === tab.id ? "var(--primary)" : "inherit",
+              }}
+            >
+              {tab.icon} {tab.label}
+            </button>
+          ))}
         </div>
 
         {/* Content Area */}

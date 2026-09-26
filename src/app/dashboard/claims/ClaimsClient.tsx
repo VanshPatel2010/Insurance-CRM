@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState, FormEvent } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Search, Plus, FileText, ChevronLeft, ChevronRight } from "lucide-react";
 import { formatCurrency, formatDate } from "@/lib/utils";
 
@@ -20,12 +21,13 @@ interface ClaimType {
 }
 
 export default function ClaimsClient() {
-  const [claims, setClaims] = useState<ClaimType[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [search, setSearch] = useState("");
-  const [status, setStatus] = useState("all");
-  const [page, setPage] = useState(1);
+  const router     = useRouter();
+  const [claims,     setClaims]     = useState<ClaimType[]>([]);
+  const [loading,    setLoading]    = useState(true);
+  const [error,      setError]      = useState("");
+  const [search,     setSearch]     = useState("");
+  const [status,     setStatus]     = useState("all");
+  const [page,       setPage]       = useState(1);
   const [totalPages, setTotalPages] = useState(1);
 
   async function loadClaims(p = 1) {
@@ -110,7 +112,36 @@ export default function ClaimsClient() {
       {error && <div className="alert alert-danger" style={{ marginBottom: 16 }}>{error}</div>}
 
       {loading ? (
-        <div style={{ padding: 40, color: "var(--text-muted)", textAlign: "center" }}>Loading claims…</div>
+        <div className="card">
+          <div className="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>Claim #</th><th>Customer</th><th>Policy #</th>
+                  <th>Claim Date</th><th>Amount</th><th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {Array.from({ length: 8 }).map((_, i) => (
+                  <tr key={i} className="skeleton-row">
+                    <td><div className="skeleton" style={{ width: 80 }} /></td>
+                    <td><div className="skeleton" style={{ width: 110 }} /></td>
+                    <td>
+                      <div className="skeleton" style={{ width: 90, marginBottom: 5 }} />
+                      <div className="skeleton" style={{ width: 55, height: 10 }} />
+                    </td>
+                    <td><div className="skeleton" style={{ width: 70 }} /></td>
+                    <td>
+                      <div className="skeleton" style={{ width: 65, marginBottom: 5 }} />
+                      <div className="skeleton" style={{ width: 50, height: 10 }} />
+                    </td>
+                    <td><div className="skeleton" style={{ width: 60 }} /></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
       ) : claims.length === 0 ? (
         <div className="empty-state card">
           <div className="empty-state-icon" style={{ background: 'var(--primary-light)', color: 'var(--primary)', padding: '20px', borderRadius: '50%', marginBottom: '16px' }}>
@@ -142,11 +173,15 @@ export default function ClaimsClient() {
               </thead>
               <tbody>
                 {claims.map((c) => (
-                  <tr key={c._id}>
+                  <tr
+                    key={c._id}
+                    className="clickable-row"
+                    onClick={() => router.push(`/dashboard/claims/${c._id}`)}
+                  >
                     <td>
-                      <Link href={`/dashboard/claims/${c._id}`} className="td-name" style={{ fontWeight: 600 }}>
+                      <span className="td-name" style={{ fontWeight: 600 }}>
                         {c.claimNumber}
-                      </Link>
+                      </span>
                     </td>
                     <td>{c.customerId?.customerName || "—"}</td>
                     <td>
@@ -160,7 +195,7 @@ export default function ClaimsClient() {
                     <td>{formatDate(c.claimDate)}</td>
                     <td>
                       <div style={{ fontWeight: 500 }}>{formatCurrency(c.claimAmount)}</div>
-                      {c.settledAmount && <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Settled: {formatCurrency(c.settledAmount)}</div>}
+                      {c.settledAmount && <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Settled: {formatCurrency(c.settledAmount)}</div>}
                     </td>
                     <td>
                       <span className="badge" style={{ backgroundColor: statusColors[c.status] || '#0F4C81', color: 'white' }}>
