@@ -89,12 +89,30 @@ export interface ReferralMemberDoc {
   notes?: string;
   totalPolicies?: number;
   totalCommission?: number;
-  pendingCommission?: number;
-  paidCommission?: number;
   premiumPaidByAgency?: number;
-  paymentReceivedFromReferral?: number;
   paymentSentToReferral?: number;
-  netAmount?: number;
+  paymentReceivedFromReferral?: number;
+  balance?: number;
+  balanceDirection?: 'agency_pays' | 'referral_pays' | 'settled';
+  amountDue?: number;
+}
+
+export interface ReferralPaymentDoc {
+  _id: string;
+  agentId: string;
+  referralId: string;
+  direction: 'sent' | 'received';
+  amount: number;
+  date: string;
+  mode: 'cash' | 'upi' | 'bank' | 'cheque' | 'adjustment' | 'legacy';
+  reference: string;
+  note: string;
+  clientRequestId?: string;
+  source: 'manual' | 'migration';
+  voidedAt?: string | null;
+  voidReason: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface CompanyDoc {
@@ -309,17 +327,23 @@ export async function getReferralDetail(
 ): Promise<{
   referral: ReferralMemberDoc;
   policies: Array<CustomerDoc & { commissionAmount: number; commissionBase: number }>;
+  payments: ReferralPaymentDoc[];
   summary: {
-    totalReferred: number;
-    totalPolicies?: number;
+    totalPolicies: number;
     totalCommission: number;
-    pendingCommission: number;
-    paidCommission: number;
     premiumPaidByAgency: number;
-    paymentReceivedFromReferral: number;
     paymentSentToReferral: number;
-    netAmount: number;
+    paymentReceivedFromReferral: number;
+    balance: number;
+    balanceDirection: 'agency_pays' | 'referral_pays' | 'settled';
+    amountDue: number;
   };
+  policyStatuses: Array<{
+    _id: string;
+    status: 'settled' | 'partial' | 'pending';
+    policyNet: number;
+    cumulativeNet: number;
+  }>;
 }> {
   const res = await fetch(`/api/referrals/${id}`);
   if (!res.ok) {
@@ -329,19 +353,95 @@ export async function getReferralDetail(
   return res.json();
 }
 
-export async function updateReferralCommissions(
+export async function deleteReferral(
+  id: string
+): Promise<{ message: string }> {
+  const res = await fetch(`/api/referrals/${id}`, { method: 'DELETE' });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error ?? 'Failed to delete referral');
+  }
+  return res.json();
+}
+
+export async function getReferralPayments(
   referralId: string,
-  policyIds: string[],
-  status: 'Pending' | 'Paid',
-): Promise<{ updated: number }> {
-  const res = await fetch(`/api/referrals/${referralId}/commissions`, {
+  filters: { from?: string; to?: string; page?: number; limit?: number } = {}
+): Promise<{ payments: ReferralPaymentDoc[]; total: number; page: number; totalPages: number }> {
+  const params = new URLSearchParams();
+  if (filters.from) params.set('from', filters.from);
+  if (filters.to) params.set('to', filters.to);
+  if (filters.page) params.set('page', String(filters.page));
+  if (filters.limit) params.set('limit', String(filters.limit));
+  const res = await fetch(`/api/referrals/${referralId}/payments?${params.toString()}`);
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error ?? 'Failed to fetch payments');
+  }
+  return res.json();
+}
+
+export async function createReferralPayment(
+  referralId: string,
+  data: {
+    direction: 'sent' | 'received';
+    amount: number;
+    date: string;
+    mode: string;
+    reference?: string;
+    note?: string;
+    expectedBalance?: number;
+    clientRequestId?: string;
+  }
+): Promise<{ payment: ReferralPaymentDoc; currentBalance: number; warning?: string }> {
+  const res = await fetch(`/api/referrals/${referralId}/payments`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    if (data.code === 'BALANCE_CHANGED') {
+      const err = new Error('Balance has changed. Please review.') as Error & { code: string; currentBalance: number };
+      err.code = 'BALANCE_CHANGED';
+      err.currentBalance = data.currentBalance;
+      throw err;
+    }
+    throw new Error(data.error ?? 'Failed to record payment');
+  }
+  return res.json();
+}
+
+export async function editReferralPayment(
+  referralId: string,
+  paymentId: string,
+  data: { date?: string; mode?: string; reference?: string; note?: string }
+): Promise<ReferralPaymentDoc> {
+  const res = await fetch(`/api/referrals/${referralId}/payments/${paymentId}`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ policyIds, status }),
+    body: JSON.stringify(data),
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    throw new Error(err.error ?? 'Failed to update commission status');
+    throw new Error(err.error ?? 'Failed to edit payment');
+  }
+  return res.json();
+}
+
+export async function voidReferralPayment(
+  referralId: string,
+  paymentId: string,
+  reason: string
+): Promise<{ payment: ReferralPaymentDoc; currentBalance: number }> {
+  const res = await fetch(`/api/referrals/${referralId}/payments/${paymentId}/void`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ reason }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error ?? 'Failed to void payment');
   }
   return res.json();
 }

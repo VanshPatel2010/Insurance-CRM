@@ -151,8 +151,10 @@ export async function POST(req: NextRequest) {
     commissionValue,
     commissionStatus,
     premiumPaidByAgency,
-    paymentReceivedFromReferral,
-    paymentSentToReferral,
+    // paymentReceivedFromReferral and paymentSentToReferral are deprecated —
+    // payments are now tracked in the ReferralPayment ledger model
+    paymentReceivedFromReferral: _legacyReceived,
+    paymentSentToReferral: _legacySent,
     details: submittedDetails,
     ...rest
   } = data as any;
@@ -213,8 +215,9 @@ export async function POST(req: NextRequest) {
     commissionValue: referredById ? commissionValue ?? "" : "",
     commissionStatus: referredById ? commissionStatus || "Pending" : "Pending",
     premiumPaidByAgency: referredById ? premiumPaidByAgency ?? "" : "",
-    paymentReceivedFromReferral: referredById ? paymentReceivedFromReferral ?? "" : "",
-    paymentSentToReferral: referredById ? paymentSentToReferral ?? "" : "",
+    // Deprecated: payments are now tracked in the ReferralPayment ledger
+    paymentReceivedFromReferral: "",
+    paymentSentToReferral: "",
     details: { ...(submittedDetails ?? {}), ...rest },
   });
 

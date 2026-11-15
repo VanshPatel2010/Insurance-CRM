@@ -400,7 +400,7 @@ async function extractFirstImageAsBase64(pdfBuffer: Buffer): Promise<string | nu
 
             const base64 = imgBuffer.toString('base64');
             console.log('[aiExtraction] Extracted image from PDF resources');
-            await pdfDoc.destroy();
+            await loadingTask.destroy();
             return base64;
           }
         } catch (err) {
@@ -412,7 +412,7 @@ async function extractFirstImageAsBase64(pdfBuffer: Buffer): Promise<string | nu
       }
     }
 
-    await pdfDoc.destroy();
+    await loadingTask.destroy();
     console.log('[aiExtraction] No embedded images found in PDF');
     return null;
   } catch (err) {
@@ -506,7 +506,7 @@ async function extractTextFromPdf(pdfBuffer: Buffer): Promise<string> {
       fullText += `[Page ${i}] ${pageText}\n`;
     }
 
-    await pdfDoc.destroy();
+    await loadingTask.destroy();
 
     return fullText
       .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '')

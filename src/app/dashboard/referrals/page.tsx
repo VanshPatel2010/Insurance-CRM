@@ -89,7 +89,7 @@ export default function ReferralsPage() {
             <thead>
               <tr>
                 <th>Name</th><th>Contact Info</th><th>Policies</th>
-                <th>Commission</th><th>Pending</th><th>Paid</th><th>Net Amount</th>
+                <th>Commission</th><th>Agency Paid</th><th>Balance</th>
               </tr>
             </thead>
             <tbody>
@@ -119,12 +119,8 @@ export default function ReferralsPage() {
                 <th>Contact Info</th>
                 <th>Total Policies</th>
                 <th>Total Commission</th>
-                <th>Pending</th>
-                <th>Paid</th>
                 <th>Agency Paid</th>
-                <th>Received</th>
-                <th>Sent</th>
-                <th>Net Amount</th>
+                <th>Balance</th>
               </tr>
             </thead>
             <tbody>
@@ -143,14 +139,21 @@ export default function ReferralsPage() {
                   </td>
                   <td>{person.totalPolicies ?? 0}</td>
                   <td>{formatCurrency(person.totalCommission ?? 0)}</td>
-                  <td>{formatCurrency(person.pendingCommission ?? 0)}</td>
-                  <td>{formatCurrency(person.paidCommission ?? 0)}</td>
-                  <td style={{ fontWeight: 600 }}>{formatCurrency(person.netAmount ?? 0)}</td>
+                  <td>{formatCurrency(person.premiumPaidByAgency ?? 0)}</td>
+                  <td style={{ fontWeight: 600 }}>
+                    {person.balanceDirection === "settled" ? (
+                      <span style={{ color: "var(--status-active, green)" }}>Settled ✓</span>
+                    ) : person.balanceDirection === "agency_pays" ? (
+                      <span style={{ color: "var(--status-expiring, #d97706)" }}>You pay {formatCurrency(person.amountDue ?? 0)}</span>
+                    ) : (
+                      <span style={{ color: "var(--primary, #2563eb)" }}>They pay {formatCurrency(person.amountDue ?? 0)}</span>
+                    )}
+                  </td>
                 </tr>
               ))}
               {referrals.length === 0 && (
                 <tr>
-                  <td colSpan={10} style={{ textAlign: "center", color: "var(--text-muted)" }}>
+                  <td colSpan={6} style={{ textAlign: "center", color: "var(--text-muted)" }}>
                     No referral members yet.
                   </td>
                 </tr>
