@@ -53,12 +53,16 @@ const CustomerSchema = new mongoose.Schema({
     default: '',
   },
   commissionValue: { type: String, default: '' },
+  // @deprecated — no longer used in calculations; kept for legacy data.
+  // Settlement is now tracked via the ReferralPayment ledger model.
   commissionStatus: {
     type: String,
     enum: ['Pending', 'Paid'],
     default: 'Pending',
   },
   premiumPaidByAgency: { type: String, default: '' },
+  // @deprecated — payments are now recorded in the ReferralPayment ledger.
+  // These fields are kept for legacy data and migration purposes only.
   paymentReceivedFromReferral: { type: String, default: '' },
   paymentSentToReferral: { type: String, default: '' },
 

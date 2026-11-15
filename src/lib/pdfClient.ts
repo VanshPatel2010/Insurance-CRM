@@ -90,6 +90,6 @@ export async function extractFromPdfClient(file: File): Promise<ClientExtraction
     result.text = cleanText;
   }
 
-  await pdf.destroy();
+  await loadingTask.destroy();
   return result;
 }

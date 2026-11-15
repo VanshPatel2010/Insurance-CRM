@@ -95,8 +95,10 @@ export async function PUT(req: NextRequest, { params }: Params) {
     commissionValue,
     commissionStatus,
     premiumPaidByAgency,
-    paymentReceivedFromReferral,
-    paymentSentToReferral,
+    // paymentReceivedFromReferral and paymentSentToReferral are deprecated —
+    // payments are now tracked in the ReferralPayment ledger model
+    paymentReceivedFromReferral: _legacyReceived,
+    paymentSentToReferral: _legacySent,
     /* eslint-disable @typescript-eslint/no-unused-vars */
     _id: _i,
     agentId: _a,
@@ -173,8 +175,10 @@ export async function PUT(req: NextRequest, { params }: Params) {
     commissionValue: referredById ? commissionValue ?? customer.commissionValue ?? "" : "",
     commissionStatus: referredById ? commissionStatus || customer.commissionStatus || "Pending" : "Pending",
     premiumPaidByAgency: referredById ? premiumPaidByAgency ?? customer.premiumPaidByAgency ?? "" : "",
-    paymentReceivedFromReferral: referredById ? paymentReceivedFromReferral ?? customer.paymentReceivedFromReferral ?? "" : "",
-    paymentSentToReferral: referredById ? paymentSentToReferral ?? customer.paymentSentToReferral ?? "" : "",
+    // Deprecated: payments are now tracked in the ReferralPayment ledger
+    // Keep existing values for legacy data, but don't accept new ones
+    paymentReceivedFromReferral: customer.paymentReceivedFromReferral ?? "",
+    paymentSentToReferral: customer.paymentSentToReferral ?? "",
     details: { ...customer.details, ...(submittedDetails ?? {}), ...rest },
     updatedAt: new Date(),
   });

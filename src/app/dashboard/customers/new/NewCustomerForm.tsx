@@ -495,10 +495,7 @@ export default function NewCustomerForm() {
     referralAgentCode: "",
     commissionType: "percentage" as "percentage" | "flat",
     commissionValue: "",
-    commissionStatus: "Pending" as "Pending" | "Paid",
     premiumPaidByAgency: "",
-    paymentReceivedFromReferral: "",
-    paymentSentToReferral: "",
   });
 
   const [submitting, setSubmitting] = useState(false);
@@ -641,11 +638,7 @@ export default function NewCustomerForm() {
           commissionType:
             p.commissionType === "flat" ? "flat" : "percentage",
           commissionValue: String(p.commissionValue ?? ""),
-          commissionStatus:
-            p.commissionStatus === "Paid" ? "Paid" : "Pending",
           premiumPaidByAgency: String(p.premiumPaidByAgency ?? ""),
-          paymentReceivedFromReferral: String(p.paymentReceivedFromReferral ?? ""),
-          paymentSentToReferral: String(p.paymentSentToReferral ?? ""),
         });
         const d = (p.details ?? {}) as Record<string, unknown>;
         if (p.type === "motor") {
@@ -1211,20 +1204,6 @@ export default function NewCustomerForm() {
     ) {
       e.premiumPaidByAgency = "Enter a valid amount";
     }
-    if (
-      referral.referredById &&
-      referral.paymentReceivedFromReferral &&
-      isNaN(Number(referral.paymentReceivedFromReferral))
-    ) {
-      e.paymentReceivedFromReferral = "Enter a valid amount";
-    }
-    if (
-      referral.referredById &&
-      referral.paymentSentToReferral &&
-      isNaN(Number(referral.paymentSentToReferral))
-    ) {
-      e.paymentSentToReferral = "Enter a valid amount";
-    }
     if (base.startDate && base.endDate && base.endDate <= base.startDate)
       e.endDate = "End date must be after start date";
     if (selectedType === "motor") {
@@ -1370,14 +1349,7 @@ export default function NewCustomerForm() {
         referralAgentCode: referral.referredById ? referral.referralAgentCode : "",
         commissionType: referral.referredById ? referral.commissionType : "",
         commissionValue: referral.referredById ? referral.commissionValue : "",
-        commissionStatus: referral.commissionStatus,
         premiumPaidByAgency: referral.referredById ? referral.premiumPaidByAgency : "",
-        paymentReceivedFromReferral: referral.referredById
-          ? referral.paymentReceivedFromReferral
-          : "",
-        paymentSentToReferral: referral.referredById
-          ? referral.paymentSentToReferral
-          : "",
         details,
       };
       delete payload.phoneCountryIso2;
@@ -3757,23 +3729,6 @@ export default function NewCustomerForm() {
                       }
                     />
                   </Field>
-                  <Field label="Commission Status" name="commissionStatus">
-                    <select
-                      id="commissionStatus"
-                      className="form-control"
-                      value={referral.commissionStatus}
-                      onChange={(e) =>
-                        setReferral((r) => ({
-                          ...r,
-                          commissionStatus: e.target
-                            .value as typeof referral.commissionStatus,
-                        }))
-                      }
-                    >
-                      <option value="Pending">Pending</option>
-                      <option value="Paid">Paid</option>
-                    </select>
-                  </Field>
                   <Field
                     label="Premium Paid By Agency (₹)"
                     name="premiumPaidByAgency"
@@ -3790,42 +3745,6 @@ export default function NewCustomerForm() {
                         }))
                       }
                       placeholder="Amount agency paid"
-                    />
-                  </Field>
-                  <Field
-                    label="Payment Received From Referral (₹)"
-                    name="paymentReceivedFromReferral"
-                    error={errors.paymentReceivedFromReferral}
-                  >
-                    <input
-                      id="paymentReceivedFromReferral"
-                      className={`form-control ${errors.paymentReceivedFromReferral ? "error" : ""}`}
-                      value={referral.paymentReceivedFromReferral}
-                      onChange={(e) =>
-                        setReferral((r) => ({
-                          ...r,
-                          paymentReceivedFromReferral: e.target.value,
-                        }))
-                      }
-                      placeholder="Amount collected"
-                    />
-                  </Field>
-                  <Field
-                    label="Payment Sent To Referral (₹)"
-                    name="paymentSentToReferral"
-                    error={errors.paymentSentToReferral}
-                  >
-                    <input
-                      id="paymentSentToReferral"
-                      className={`form-control ${errors.paymentSentToReferral ? "error" : ""}`}
-                      value={referral.paymentSentToReferral}
-                      onChange={(e) =>
-                        setReferral((r) => ({
-                          ...r,
-                          paymentSentToReferral: e.target.value,
-                        }))
-                      }
-                      placeholder="Amount returned or paid"
                     />
                   </Field>
                 </>

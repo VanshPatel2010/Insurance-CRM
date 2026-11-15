@@ -139,11 +139,10 @@ export default function CustomerDetailPage() {
       : null;
   const calculatedCommissionAmount = commissionAmount(policy);
   const calculatedCommissionBase = commissionBaseAmount(policy);
-  const netAmount =
-    toMoneyNumber(policy.premiumPaidByAgency) -
-    (policy.commissionStatus === "Paid" ? 0 : calculatedCommissionAmount) -
-    toMoneyNumber(policy.paymentReceivedFromReferral) +
-    toMoneyNumber(policy.paymentSentToReferral);
+  // Policy-level net: commission minus what the agency paid on behalf
+  // (positive = agency owes referral for this policy, negative = referral owes agency)
+  const policyNet =
+    calculatedCommissionAmount - toMoneyNumber(policy.premiumPaidByAgency);
 
   async function handleDelete() {
     setDeleteLoading(true);
@@ -788,24 +787,12 @@ export default function CustomerDetailPage() {
                   value={formatCurrency(calculatedCommissionAmount)}
                 />
                 <Field
-                  label="Commission Status"
-                  value={policy.commissionStatus || "Pending"}
-                />
-                <Field
                   label="Premium Paid By Agency"
                   value={formatCurrency(policy.premiumPaidByAgency)}
                 />
                 <Field
-                  label="Payment Received From Referral"
-                  value={formatCurrency(policy.paymentReceivedFromReferral)}
-                />
-                <Field
-                  label="Payment Sent To Referral"
-                  value={formatCurrency(policy.paymentSentToReferral)}
-                />
-                <Field
-                  label="Net Amount"
-                  value={formatCurrency(netAmount)}
+                  label="Policy Net"
+                  value={formatCurrency(policyNet)}
                 />
               </div>
             </div>
