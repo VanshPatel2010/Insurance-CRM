@@ -49,7 +49,7 @@ export async function POST(req: NextRequest, { params }: Params) {
   }
 
   payment.voidedAt = new Date();
-  payment.voidReason = reason.trim();
+  payment.voidReason = reason.trim().slice(0, 500);
   payment.updatedAt = new Date();
   await payment.save();
 

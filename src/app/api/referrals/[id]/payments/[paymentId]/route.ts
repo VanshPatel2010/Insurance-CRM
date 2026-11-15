@@ -66,11 +66,11 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   }
 
   if (body.reference !== undefined) {
-    payment.reference = String(body.reference).trim();
+    payment.reference = String(body.reference).trim().slice(0, 200);
   }
 
   if (body.note !== undefined) {
-    payment.note = String(body.note).trim();
+    payment.note = String(body.note).trim().slice(0, 500);
   }
 
   // If mode is adjustment, note must be non-empty

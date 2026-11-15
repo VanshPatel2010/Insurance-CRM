@@ -103,6 +103,9 @@ export async function POST(req: NextRequest, { params }: Params) {
   if (!Number.isFinite(rawAmount) || rawAmount <= 0) {
     return NextResponse.json({ error: "amount must be a positive finite number" }, { status: 400 });
   }
+  if (rawAmount > 99_99_999) {
+    return NextResponse.json({ error: "amount exceeds maximum allowed (₹99,99,999)" }, { status: 400 });
+  }
   // Max 2 decimal places check
   const decimalStr = String(rawAmount).split(".")[1];
   if (decimalStr && decimalStr.length > 2) {
@@ -142,7 +145,7 @@ export async function POST(req: NextRequest, { params }: Params) {
   await connectDB();
 
   // ── Idempotency check ────────────────────────────────────────────────────
-  const clientRequestId = body.clientRequestId ? String(body.clientRequestId).trim() : undefined;
+  const clientRequestId = body.clientRequestId ? String(body.clientRequestId).trim().slice(0, 100) : undefined;
   if (clientRequestId) {
     const existing = await ReferralPayment.findOne({ agentId, clientRequestId }).lean();
     if (existing) {
@@ -189,6 +192,9 @@ export async function POST(req: NextRequest, { params }: Params) {
   }
 
   // ── Create payment ──────────────────────────────────────────────────────
+  const reference = body.reference ? String(body.reference).trim().slice(0, 200) : "";
+  const note = body.note ? String(body.note).trim().slice(0, 500) : "";
+
   const payment = await ReferralPayment.create({
     agentId,
     referralId: id,
@@ -196,8 +202,8 @@ export async function POST(req: NextRequest, { params }: Params) {
     amount,
     date: parsedDate,
     mode,
-    reference: body.reference ? String(body.reference).trim() : "",
-    note: body.note ? String(body.note).trim() : "",
+    reference,
+    note,
     clientRequestId: clientRequestId || undefined,
   });
 

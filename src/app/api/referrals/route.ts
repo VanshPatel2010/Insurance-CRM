@@ -81,11 +81,11 @@ export async function POST(req: NextRequest) {
   await connectDB();
   const referral = await ReferralMember.create({
     agentId: session.user.id,
-    name: String(body.name),
-    phone: String(body.phone ?? ""),
-    email: String(body.email ?? ""),
-    address: String(body.address ?? ""),
-    notes: String(body.notes ?? ""),
+    name: String(body.name).slice(0, 200),
+    phone: String(body.phone ?? "").slice(0, 20),
+    email: String(body.email ?? "").slice(0, 200),
+    address: String(body.address ?? "").slice(0, 500),
+    notes: String(body.notes ?? "").slice(0, 1000),
   });
 
   return NextResponse.json(referral, { status: 201 });

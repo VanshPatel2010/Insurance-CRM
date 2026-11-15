@@ -21,6 +21,7 @@ const ReferralPaymentSchema = new mongoose.Schema({
     type: Number,
     required: true,
     min: 0.01,
+    max: 9999999,
   },
   date: {
     type: Date,
@@ -32,16 +33,16 @@ const ReferralPaymentSchema = new mongoose.Schema({
     enum: ['cash', 'upi', 'bank', 'cheque', 'adjustment', 'legacy'],
     required: true,
   },
-  reference: { type: String, trim: true, default: '' },
-  note: { type: String, trim: true, default: '' },
-  clientRequestId: { type: String, trim: true },
+  reference: { type: String, trim: true, default: '', maxlength: 200 },
+  note: { type: String, trim: true, default: '', maxlength: 500 },
+  clientRequestId: { type: String, trim: true, maxlength: 100 },
   source: {
     type: String,
     enum: ['manual', 'migration'],
     default: 'manual',
   },
   voidedAt: { type: Date, default: null },
-  voidReason: { type: String, trim: true, default: '' },
+  voidReason: { type: String, trim: true, default: '', maxlength: 500 },
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now },
 });
